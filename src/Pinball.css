@@ -1,0 +1,8 @@
+.pinball-table {
+  border: 1px solid gray;
+}
+.pinball {
+  background-color: silver;
+  position: absolute;
+  z-index: 99999999;
+}
