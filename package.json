@@ -1,0 +1,22 @@
+{
+  "name": "primitivepinball",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1",
+    "react-scripts": "1.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start | npm run watchless",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject",
+    "less": "./node_modules/.bin/lessc ./src/styles/pinball.less ./src/Pinball.css",
+    "watchless": "watch-run -p '**/*.less' npm run less"
+  },
+  "devDependencies": {
+    "less": "^3.5.3",
+    "watch-run": "^1.2.5"
+  }
+}
