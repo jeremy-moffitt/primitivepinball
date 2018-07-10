@@ -1,15 +1,35 @@
 import React, { Component } from 'react';
 import Pinball from './Pinball.js';
+import Obstacle from './Obstacle.js';
+
 
 class PinballTable extends Component {
 
   constructor(props){
     super(props);
     this.pinball = React.createRef();
+    this.tableElements = [
+      {
+        type: 'wall',
+        xpos: 260,
+        ypos: 400,
+        width: 30,
+        height: 10,
+        id: 'wall1'
+      },
+      {
+        type: 'wall',
+        xpos: 110,
+        ypos: 400,
+        width: 30,
+        height: 10,
+        id: 'wall2'
+      }
+    ]
   }
 
   plungered = () => {
-    this.pinball.current.applyForce(0, -10);
+    this.pinball.current.applyForce(-5, -500);
   }
 
   render() {
@@ -26,7 +46,9 @@ class PinballTable extends Component {
         <div>
           <div className='pinball-table' style={ tableSize }>
             <Pinball origin={pinballOrigin} tableprops={this.props}
-                     ref={this.pinball} />
+                     ref={this.pinball} obstacles={this.tableElements} />
+          { this.tableElements.map(item =>
+              <Obstacle {...item} key={item.id} /> ) }
           </div>
           <div className='plunger'>
             <button onClick={this.plungered}>start game</button>
