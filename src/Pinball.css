@@ -1,5 +1,6 @@
 .pinball-table {
   border: 1px solid gray;
+  background-color: white;
 }
 .pinball {
   background-color: silver;
@@ -8,4 +9,11 @@
 }
 .wall {
   position: absolute;
+}
+.plunger {
+  background-color: brown;
+  width: 20px;
+  height: 100px;
+  position: absolute;
+  z-index: -1;
 }

@@ -30,6 +30,25 @@ class Pinball extends Component {
     }, this.move);
   }
 
+  isAtOrigin = () => {
+    if(this.state.xpos === this.props.origin.x - (this.size * 2) &&
+       this.state.ypos === this.props.origin.y - (this.size * 2)){
+      return true;
+    }
+    return false;
+  }
+
+  resetToOrigin = () => {
+    this.setState((prevState) => {
+      return {
+        xpos: this.props.origin.x - (this.size * 2),
+        ypos: this.props.origin.y - (this.size * 2),
+        xspeed: 0,
+        yspeed: 0
+      }
+    });
+  }
+
   //may need to move this up a level to get visibility to other objects
   move = () => {
     this.setState((prevState) => {
@@ -38,6 +57,11 @@ class Pinball extends Component {
       if(updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
          updatedState.ypos !== this.floor ){
         setTimeout(this.move.bind(this), (MOVE_UPDATE_FREQUENCY_SECS * 100));
+      } else {
+        if(!this.isAtOrigin() && updatedState.ypos === this.floor){
+          //ball lost, let the table know
+          this.props.balllost();
+        }
       }
 
       return {
@@ -78,15 +102,16 @@ class Pinball extends Component {
     }
 
     let collisionPoint;
+    //should move this code to individual obstacles since they may have impact on the ball movement
     if(newYSpeed > 0) {//ball is traveling downward
-      collisionPoint = this.checkCollisions(xpos, ypos + radius, newXPos, newYPos + radius);
+      collisionPoint = this.checkCollisions(xpos, ypos + radius, newXPos, newYPos + radius).collisionPoint;
       if(collisionPoint) {
         //found a collision!
         newYPos = collisionPoint.y - (2 * radius);
         newYSpeed = 0;
       }
     } else if (newYSpeed < 0){//ball is traveling upwards
-      collisionPoint = this.checkCollisions(xpos, ypos - radius, newXPos, newYPos - radius);
+      collisionPoint = this.checkCollisions(xpos, ypos - radius, newXPos, newYPos - radius).collisionPoint;
       if(collisionPoint) {
         //found a collision!
         newYPos = collisionPoint.y + (2 * radius);
@@ -95,14 +120,14 @@ class Pinball extends Component {
     }
 
     if(newXSpeed > 0) {//ball is traveling right
-      collisionPoint = this.checkCollisions(xpos + radius, newYPos, newXPos + radius);
+      collisionPoint = this.checkCollisions(xpos + radius, newYPos, newXPos + radius).collisionPoint;
       if(collisionPoint) {
         //found a collision!
         newXPos = collisionPoint.x - (2 * radius);
         newXSpeed = 0;
       }
     } else if (newXSpeed < 0){//ball is traveling left
-      collisionPoint = this.checkCollisions(xpos - radius, newYPos, newXPos - radius, newYPos);
+      collisionPoint = this.checkCollisions(xpos - radius, newYPos, newXPos - radius, newYPos).collisionPoint;
       if(collisionPoint) {
         //found a collision!
         newXPos = collisionPoint.x + (2 * radius);
@@ -120,7 +145,7 @@ class Pinball extends Component {
 
   //Need to check if the ball is going to collide with anything
   checkCollisions(startX, startY, endX, endY){
-    let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined;
+    let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined, collidedWith = undefined;
     let lengthOfLine = Math.round(Math.sqrt(Math.pow(startX - endX, 2) + Math.pow(startY - endY, 2)));
     let rateOfChangeX = (startX - endX) / lengthOfLine;
     let rateOfChangeY = (startY - endY) / lengthOfLine;
@@ -139,13 +164,17 @@ class Pinball extends Component {
             nearestCollisionPoint = {
               x: lineX,
               y: lineY
-            }
+            };
+            collidedWith = obstacle;
           }
         }
       }
     }
 
-    return nearestCollisionPoint;
+    return {
+      collisionPoint: nearestCollisionPoint,
+      obstacle: collidedWith
+    };
   }
 
   render() {

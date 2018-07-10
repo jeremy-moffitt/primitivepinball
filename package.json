@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "less": "^3.5.3",
+    "react-draggable": "^3.0.5",
     "watch-run": "^1.2.5"
   }
 }
