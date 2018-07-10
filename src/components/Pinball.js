@@ -1,8 +1,11 @@
 import React, { Component } from 'react';
+import { isPointInBoundary } from './Obstacle.js';
 
-const MOVE_UPDATE_FREQUENCY_SECS = 0.25
+const MOVE_UPDATE_FREQUENCY_SECS = 0.1;
+const GRAVITY_Y_PULL = 2;
 
 class Pinball extends Component {
+
   constructor(props)
   {
     super(props);
@@ -14,6 +17,7 @@ class Pinball extends Component {
       xspeed: 0,
       yspeed: 0
     }
+    this.floor = this.props.origin.y - (this.size * 2);
   }
 
   applyForce = (xforce, yforce) => {
@@ -29,9 +33,10 @@ class Pinball extends Component {
   //may need to move this up a level to get visibility to other objects
   move = () => {
     this.setState((prevState) => {
-      let updatedState = this.ballWantsToMove(prevState.xpos, prevState.ypos, prevState.xspeed, prevState.yspeed, this.size);
+      let updatedState = this.ballWantsToMove(prevState.xpos, prevState.ypos, prevState.xspeed, prevState.yspeed);
 
-      if(updatedState.xspeed !== 0 || updatedState.yspeed !== 0){
+      if(updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
+         updatedState.ypos !== this.floor ){
         setTimeout(this.move.bind(this), (MOVE_UPDATE_FREQUENCY_SECS * 100));
       }
 
@@ -46,29 +51,63 @@ class Pinball extends Component {
   }
 
   //this will check collisions and return the new state of the ball
-  ballWantsToMove(xpos, ypos, xspeed, yspeed, radius, timespan = MOVE_UPDATE_FREQUENCY_SECS) {
+  ballWantsToMove(xpos, ypos, xspeed, yspeed, radius=this.size, timespan = MOVE_UPDATE_FREQUENCY_SECS) {
     let newXPos = xpos;
     let newYPos = ypos;
     let newXSpeed = xspeed;
     let newYSpeed = yspeed;
-    if(xpos + radius + (xspeed * timespan) > this.props.tableprops.width){ //ball hit into right side table wall
+    if(xpos + (radius * 2) + (xspeed * timespan) > this.props.tableprops.width){ //ball hit into right side table wall
       newXPos = this.props.tableprops.width - (radius * 2);
       newXSpeed = 0;
     } else if(xpos + (xspeed * timespan) < 0) { //ball hit into left side table wall
-      newXPos = radius;
+      newXPos = 0;
       newXSpeed = 0;
     } else {
       newXPos = xpos + (xspeed * timespan);
     }
 
-    if(ypos + radius + (yspeed * timespan) > this.props.tableprops.height){ //ball hit bottom of table
-      newYPos = this.props.tableprops.height - (radius * 2);
+    if(ypos + (radius * 2) + (yspeed * timespan) > this.props.tableprops.height){ //ball hit bottom of table
+      newYPos = this.floor;
       newYSpeed = 0;
     } else if(ypos + (yspeed * timespan) < 0) { //ball hit into ceiling
-      newYPos = radius;
+      newYPos = 0;
       newYSpeed = 0;
     } else {
       newYPos = ypos + (yspeed * timespan);
+      newYSpeed = yspeed + (GRAVITY_Y_PULL * timespan);
+    }
+
+    let collisionPoint;
+    if(newYSpeed > 0) {//ball is traveling downward
+      collisionPoint = this.checkCollisions(xpos, ypos + radius, newXPos, newYPos + radius);
+      if(collisionPoint) {
+        //found a collision!
+        newYPos = collisionPoint.y - (2 * radius);
+        newYSpeed = 0;
+      }
+    } else if (newYSpeed < 0){//ball is traveling upwards
+      collisionPoint = this.checkCollisions(xpos, ypos - radius, newXPos, newYPos - radius);
+      if(collisionPoint) {
+        //found a collision!
+        newYPos = collisionPoint.y + (2 * radius);
+        newYSpeed = 0;
+      }
+    }
+
+    if(newXSpeed > 0) {//ball is traveling right
+      collisionPoint = this.checkCollisions(xpos + radius, newYPos, newXPos + radius);
+      if(collisionPoint) {
+        //found a collision!
+        newXPos = collisionPoint.x - (2 * radius);
+        newXSpeed = 0;
+      }
+    } else if (newXSpeed < 0){//ball is traveling left
+      collisionPoint = this.checkCollisions(xpos - radius, newYPos, newXPos - radius, newYPos);
+      if(collisionPoint) {
+        //found a collision!
+        newXPos = collisionPoint.x + (2 * radius);
+        newXSpeed = 0;
+      }
     }
 
     return({
@@ -79,10 +118,40 @@ class Pinball extends Component {
     })
   }
 
+  //Need to check if the ball is going to collide with anything
+  checkCollisions(startX, startY, endX, endY){
+    let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined;
+    let lengthOfLine = Math.round(Math.sqrt(Math.pow(startX - endX, 2) + Math.pow(startY - endY, 2)));
+    let rateOfChangeX = (startX - endX) / lengthOfLine;
+    let rateOfChangeY = (startY - endY) / lengthOfLine;
+    let lineX = startX, lineY = startY;
+    for(const obstacle of this.props.obstacles){
+      for(let i = 0; i < lengthOfLine; i++){
+        lineX = Math.round(startX + (i * rateOfChangeX));
+        lineY = Math.round(startY + (i * rateOfChangeY));
+        if(isPointInBoundary(lineX, lineY, obstacle)){
+          //found a collision, but is it closer to our point of origin than any previous
+          //collisions?
+          let distanceFromStart = Math.round(Math.sqrt(Math.pow(startX - lineX, 2) + Math.pow(startY - lineY, 2)));
+          if(nearestCollisionDistance === undefined ||
+              distanceFromStart < nearestCollisionDistance) {
+            nearestCollisionDistance = distanceFromStart;
+            nearestCollisionPoint = {
+              x: lineX,
+              y: lineY
+            }
+          }
+        }
+      }
+    }
+
+    return nearestCollisionPoint;
+  }
+
   render() {
     let ballStyle = {
-      "top": this.state.ypos,
-      "left": this.state.xpos,
+      "top": this.state.ypos + 'px',
+      "left": this.state.xpos  + 'px',
       "height": (this.size * 2) + 'px',
       "width": (this.size * 2) + 'px',
       "borderRadius": this.size + 'px'
