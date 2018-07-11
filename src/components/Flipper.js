@@ -30,7 +30,6 @@ class Flipper extends Component {
       }, 100);
       return tempAngle;
     } else {
-      console.log('flip is true!');
       //flipper was just flipped
       setTimeout(() => {
         this.changeFlipperAngle(this.props.angle + this.props.arc)
