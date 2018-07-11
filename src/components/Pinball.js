@@ -51,17 +51,16 @@ class Pinball extends Component {
 
   //may need to move this up a level to get visibility to other objects
   move = () => {
+    let ballLost = false;
     this.setState((prevState) => {
       let updatedState = this.ballWantsToMove(prevState.xpos, prevState.ypos, prevState.xspeed, prevState.yspeed);
 
-      if(updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
+      if(!this.isAtOrigin() && updatedState.ypos === this.floor){
+        //ball lost, let the table know
+        ballLost = true;
+      } else if(updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
          updatedState.ypos !== this.floor ){
         setTimeout(this.move.bind(this), (MOVE_UPDATE_FREQUENCY_SECS * 100));
-      } else {
-        if(!this.isAtOrigin() && updatedState.ypos === this.floor){
-          //ball lost, let the table know
-          this.props.balllost();
-        }
       }
 
       return {
@@ -72,6 +71,11 @@ class Pinball extends Component {
       }
 
     });
+
+    //need to call this from outside of the setState function to avoid nested setState calls
+    if(ballLost){
+      this.props.balllost();
+    }
   }
 
   //this will check collisions and return the new state of the ball
@@ -103,6 +107,8 @@ class Pinball extends Component {
 
     let collisionPoint;
     //should move this code to individual obstacles since they may have impact on the ball movement
+    // currently only checks farthest point in direction traveled, should really check 3 points (add diagonals)
+    // for each direction
     if(newYSpeed > 0) {//ball is traveling downward
       collisionPoint = this.checkCollisions(xpos, ypos + radius, newXPos, newYPos + radius).collisionPoint;
       if(collisionPoint) {
