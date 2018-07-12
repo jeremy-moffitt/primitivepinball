@@ -15,6 +15,10 @@ class Pinball extends Component {
     };
   }
 
+  getState = () => {
+    return this.state;
+  }
+
   applyForce = (xforce, yforce) => {
     this.setState((prevState) => {
 

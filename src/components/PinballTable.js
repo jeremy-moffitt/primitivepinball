@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import Pinball from './Pinball.js';
-import Obstacle, { isPointInBoundary } from './Obstacle.js';
+import Obstacle from './Obstacle.js';
 import Draggable from 'react-draggable';
 
-import { MOVE_UPDATE_FREQUENCY_SECS, GRAVITY_Y_PULL, DEFAULT_BALL_SIZE } from '../constants.js';
+import { MOVE_UPDATE_FREQUENCY_SECS, GRAVITY_Y_PULL } from '../constants.js';
 
 class PinballTable extends Component {
 
@@ -62,7 +62,7 @@ class PinballTable extends Component {
     }
     this.state = {
       plungerKey: 0,
-      flip: false
+      flipperCollisionsEnabled: true
     }
   }
 
@@ -72,6 +72,9 @@ class PinballTable extends Component {
       this.pinball.current.applyForce(element.y * (-0.15), element.y * (-2.00));
       //for testing left flipper collision uncomment out below and comment out above
       //this.pinball.current.applyForce(-15, -20);
+
+      //for testing right flipper collision uncomment out below and comment out above
+      //this.pinball.current.applyForce(-7, -25);
     }
     setTimeout(this.resetPlunger.bind(this), 200);
   }
@@ -81,10 +84,10 @@ class PinballTable extends Component {
     // this is the quickest way to reset its state without learning
     // the inards of the draggable-core library
     this.setState((prevState) => {
-     return {
-       plungerKey: prevState.plungerKey + 1
-     };
-   });
+      return {
+        plungerKey: prevState.plungerKey + 1
+      };
+    });
   }
 
   //reset the table, reset the ball to origin
@@ -92,22 +95,36 @@ class PinballTable extends Component {
     this.pinball.current.resetToOrigin();
   }
 
-  clearFlip = () => {
-    this.setState((prevState) => {
-      return {
-        flip: false
-      };
-    });
+  triggerFlippers = () => {
+    let currentObj, appliedForce;
+    let pinball = this.pinball.current.getState();
+    for(const obstacle of this.tableElements)
+    {
+      if(obstacle.type ==='flipper') {
+        currentObj = this[obstacle.id].current;//try to get the ref
+        appliedForce = currentObj.getActualComponent().flip(pinball.xpos, pinball.ypos,
+                                                            pinball.xspeed, pinball.yspeed,
+                                                            this.pinballSize);
+        if(appliedForce.x !== 0 || appliedForce.y !== 0){
+          //need to ignore flipper collisions for some period of time while the force is applied,
+          //otherwise the ball intersecting with the flippers will immediately re-collide with them
+          this.setFlipperCollisions(false);
+          this.pinball.current.applyForce(appliedForce.x, appliedForce.y);
+          console.log('applied force x:' + appliedForce.x + ' y:' + appliedForce.y);
+          setTimeout(() => {
+            this.setFlipperCollisions(true);
+          }, 1000);//turn collisions back on a second later
+        }
+      }
+    }
   }
 
-  triggerFlippers = () => {
-    //this.leftFlipper.current.triggerFlip();
-    //this.rightFlipper.current.triggerFlip();
+  setFlipperCollisions = (collisionsEnabled) => {
     this.setState((prevState) => {
       return {
-        flip: true
+        flipperCollisionsEnabled: collisionsEnabled
       };
-    }, this.clearFlip);
+    });
   }
 
   //this will check collisions and return the new state of the ball
@@ -129,7 +146,7 @@ class PinballTable extends Component {
     if(ypos + (this.pinballSize * 2) + (yspeed * MOVE_UPDATE_FREQUENCY_SECS) > this.props.height){ //ball hit bottom of table
       newYPos = this.floor;//should probably move this up a level and set it via props in pinball
       newYSpeed = 0;
-    } else if(ypos + (yspeed * MOVE_UPDATE_FREQUENCY_SECS) < 0) { //ball hit into ceiling
+      } else if(ypos + (yspeed * MOVE_UPDATE_FREQUENCY_SECS) < 0) { //ball hit into ceiling
       newYPos = 0;
       newYSpeed = 0;
     } else {
@@ -188,22 +205,27 @@ class PinballTable extends Component {
     let rateOfChangeX = (startX - endX) / lengthOfLine;
     let rateOfChangeY = (startY - endY) / lengthOfLine;
     let lineX = startX, lineY = startY;
+    let currentObj;
     for(const obstacle of this.tableElements){
-      for(let i = 0; i < lengthOfLine; i++){
-        lineX = Math.round(startX + (i * rateOfChangeX));
-        lineY = Math.round(startY + (i * rateOfChangeY));
-        if(isPointInBoundary(lineX, lineY, obstacle)){
-          //found a collision, but is it closer to our point of origin than any previous
-          //collisions?
-          let distanceFromStart = Math.round(Math.sqrt(Math.pow(startX - lineX, 2) + Math.pow(startY - lineY, 2)));
-          if(nearestCollisionDistance === undefined ||
-              distanceFromStart < nearestCollisionDistance) {
-            nearestCollisionDistance = distanceFromStart;
-            nearestCollisionPoint = {
-              x: lineX,
-              y: lineY
-            };
-            collidedWith = obstacle;
+      currentObj = this[obstacle.id];//try to get the ref
+      if(obstacle.type !== 'flipper' || this.state.flipperCollisionsEnabled === true) {
+        for (let i = 0; i < lengthOfLine; i++) {
+          lineX = Math.round(startX + (i * rateOfChangeX));
+          lineY = Math.round(startY + (i * rateOfChangeY));
+
+          if (currentObj.current.isPointInBoundary(lineX, lineY, obstacle)) {
+            //found a collision, but is it closer to our point of origin than any previous
+            //collisions?
+            let distanceFromStart = Math.round(Math.sqrt(Math.pow(startX - lineX, 2) + Math.pow(startY - lineY, 2)));
+            if (nearestCollisionDistance === undefined ||
+                distanceFromStart < nearestCollisionDistance) {
+              nearestCollisionDistance = distanceFromStart;
+              nearestCollisionPoint = {
+                x: lineX,
+                y: lineY
+              };
+              collidedWith = obstacle;
+            }
           }
         }
       }
