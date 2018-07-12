@@ -18,15 +18,17 @@ class Wall extends Component {
       <span className="wall"  style={ wallStyle } />
     )
   }
+
+
+  isPointInBoundary(x, y) {
+    if(x > this.props.xpos && x < this.props.xpos + this.props.width &&
+        y > this.props.ypos && y < this.props.ypos + this.props.height) {
+      return true;
+    }
+
+    return false;
+  }
+
 }
 
 export default Wall;
-
-export function isPointInBoundary(x, y, wallprops) {
-  if(x > wallprops.xpos && x < wallprops.xpos + wallprops.width &&
-      y > wallprops.ypos && y < wallprops.ypos + wallprops.height) {
-    return true;
-  }
-
-  return false;
-}
