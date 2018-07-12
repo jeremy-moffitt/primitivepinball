@@ -142,24 +142,37 @@ class Flipper extends Component {
     // y = this.props.ypos + ((x - this.props.xpos) * sin(this.state.currentAngle))
     // and the bottom bar should be:
     // y = this.props.ypos + this.flipperWidth + ((x - this.props.xpos) * sin(this.state.currentAngle))
-    let angleMod = -1;
-    let workingAngle = angle % 90;
+    // mod out to between 0-90 degrees, we only care about the length of the opposite side
+    // and sin values for >90 don't produce a useful result
+    let workingAngle = Math.abs(angle % 90);
+
+    let oppositeLen = atlen * Math.sin(workingAngle) * -1;
+    let quadrant = Math.floor(angle / 90) % 4;
+    switch(quadrant) {
+      case 3:
+        oppositeLen = atlen * Math.sin(angle);
+        yTop = this.props.ypos + oppositeLen;
+        yBottom = this.props.ypos + oppositeLen + this.flipperWidth;
+        break;
+      case 2:
+        oppositeLen = atlen * Math.sin(angle % 180);
+        yTop = this.props.ypos - oppositeLen - this.flipperWidth;
+        yBottom = this.props.ypos - oppositeLen;
+        break;
+      case 1:
+        oppositeLen = atlen * Math.sin(180 - workingAngle);
+      default:
+        yBottom = this.props.ypos + oppositeLen + this.flipperWidth;
+        yTop = this.props.ypos + oppositeLen;
+        break;
+    }
 
     if((Math.floor(this.props.angle / 90) % 2) === 1){
-      //if the flipper opens left, check the props value here (above if) as
-      //the flipper may be in a flipped state and we want to base the
-      //logic on its default value
-      yTop = this.props.ypos + (atlen * angleMod * Math.sin(workingAngle));
-      yBottom = this.props.ypos + 5 + (atlen * angleMod * Math.sin(workingAngle));
+      //if the flipper opens left
       minX = this.props.xpos - this.props.length;
       maxX = this.props.xpos;
     } else {
-      if(Math.abs((Math.floor(angle / 180) % 2)) === 1){
-        angleMod = 1;
-      }
       //if the flipper opens right
-      yTop = this.props.ypos + (atlen * angleMod * Math.sin(workingAngle));
-      yBottom = this.props.ypos + 5 + (atlen * angleMod * Math.sin(workingAngle));
       minX = this.props.xpos;
       maxX = this.props.xpos + this.props.length;
     }

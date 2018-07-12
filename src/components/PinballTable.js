@@ -40,7 +40,7 @@ class PinballTable extends Component {
       {
         type: 'flipper',
         xpos: (this.props.width / 2) - 80,
-        ypos: 720,
+        ypos: 700,
         length: 70,
         angle: 30,
         arc: -70,
@@ -49,7 +49,7 @@ class PinballTable extends Component {
       {
         type: 'flipper',
         xpos: (this.props.width / 2) + 80,
-        ypos: 720,
+        ypos: 700,
         length: 70,
         angle: 150,
         arc: 70,
@@ -71,7 +71,7 @@ class PinballTable extends Component {
     if(this.pinball.current.isAtOrigin()) {
       //this.pinball.current.applyForce(element.y * (-0.15), element.y * (-2.00));
       //for testing left flipper collision uncomment out below and comment out above
-      //this.pinball.current.applyForce(-14, -20);
+      //this.pinball.current.applyForce(-15, -20);
 
       //for testing right flipper collision uncomment out below and comment out above
       this.pinball.current.applyForce(-7, -25);
@@ -110,7 +110,6 @@ class PinballTable extends Component {
           //otherwise the ball intersecting with the flippers will immediately re-collide with them
           this.setFlipperCollisions(false);
           this.pinball.current.applyForce(appliedForce.x, appliedForce.y);
-          console.log('applied force x:' + appliedForce.x + ' y:' + appliedForce.y);
           setTimeout(() => {
             this.setFlipperCollisions(true);
           }, 500);//turn collisions back 500ms later
