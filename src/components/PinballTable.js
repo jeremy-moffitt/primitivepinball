@@ -69,12 +69,12 @@ class PinballTable extends Component {
   plungered = (event, element) => {
     //is the ball at the starting point? if not, don't move it from the plunger applying force
     if(this.pinball.current.isAtOrigin()) {
-      this.pinball.current.applyForce(element.y * (-0.15), element.y * (-2.00));
+      //this.pinball.current.applyForce(element.y * (-0.15), element.y * (-2.00));
       //for testing left flipper collision uncomment out below and comment out above
-      //this.pinball.current.applyForce(-15, -20);
+      //this.pinball.current.applyForce(-14, -20);
 
       //for testing right flipper collision uncomment out below and comment out above
-      //this.pinball.current.applyForce(-7, -25);
+      this.pinball.current.applyForce(-7, -25);
     }
     setTimeout(this.resetPlunger.bind(this), 200);
   }
@@ -113,7 +113,7 @@ class PinballTable extends Component {
           console.log('applied force x:' + appliedForce.x + ' y:' + appliedForce.y);
           setTimeout(() => {
             this.setFlipperCollisions(true);
-          }, 1000);//turn collisions back on a second later
+          }, 500);//turn collisions back 500ms later
         }
       }
     }
@@ -237,6 +237,29 @@ class PinballTable extends Component {
     };
   }
 
+  getBallTouchPoints = () =>{
+    let ballState = this.pinball.current.getState();
+    let ballTouchPoints = [
+      {//bottom of the ball
+        ballX: ballState.xpos,
+        ballY: ballState.ypos + this.pinballSize
+      },
+      { //bottom left
+        ballX: ballState.xpos - Math.round(Math.sin(135) * this.pinballSize),
+        ballY: ballState.ypos + Math.round(Math.cos(135) * this.pinballSize)
+      },
+      {//bottom right
+        ballX: ballState.xpos + Math.round(Math.sin(45) * this.pinballSize),
+        ballY: ballState.ypos + Math.round(Math.cos(45) * this.pinballSize)
+      },
+      {//center of the ball shouldn't be needed, but this is finicky
+        ballX: ballState.xpos,
+        ballY: ballState.ypos
+      }
+    ];
+
+    return ballTouchPoints;
+  }
 
 
   render() {
@@ -269,7 +292,7 @@ class PinballTable extends Component {
                      size={this.pinballSize}
                      balllost={this.ballLost}/>
           { this.tableElements.map(item =>
-              <Obstacle {...item} key={item.id} flip={this.state.flip} ref={this[item.id]}/> ) }
+              <Obstacle {...item} key={item.id} flip={this.state.flip} ref={this[item.id]} ballTouchPoints={this.getBallTouchPoints}/> ) }
           </div>
           <Draggable
             onStop={this.plungered}
