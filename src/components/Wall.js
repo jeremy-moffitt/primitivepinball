@@ -1,10 +1,16 @@
 import React, { Component } from 'react';
 
+/**
+ * a Wall is a non-moving rectangular obstacle
+ */
 class Wall extends Component {
 
   //Props for this class should be
   //xpos, ypos, width, height
 
+  /**
+   * standard reactJs render function
+   */
   render() {
     let background = this.props.background || 'green';
     let wallStyle = {
@@ -19,6 +25,16 @@ class Wall extends Component {
     )
   }
 
+  /**
+   * determine how the pinball should have its speed changed based on collision with the wall
+   * @param startX the x coordinate of the pinball before its current move calculation started
+   * @param startY the y coordinate of the pinball before its current move calculation started
+   * @param x the target x coordinate for the pinball based on its present speed
+   * @param y the target y coordinate for the pinball based on its present speed
+   * @param xspeed the current speed of the ball along the x-axis
+   * @param yspeed the current speed of the ball along the y-axis
+   * @return { newXSpeed : resulting speed along the x-axis , newYSpeed: resulting speed along the y-axis}
+   */
   impactOfCollision(startX, startY, x, y, xspeed, yspeed){
     let newXSpeed, newYSpeed;
     //need to figure out which side it hit from
@@ -54,12 +70,14 @@ class Wall extends Component {
     }
   }
 
+  /**
+   * determines whether a particular x,y coordinate is within area of the wall,
+   * used to determine collisions
+   * @param x the x-coordinate to check against the shape of the wall
+   * @param y the y-coordinate to check against the shape of the wall
+   * @return boolean true if the coordinate is within the wall area, false if not
+   */
   isPointInBoundary(x, y) {
-    /*if((y - 9) < (this.props.ypos + this.props.height)) {
-      console.log('x,y is:' + x + ' , ' + y);
-      console.log('is x between: ' + this.props.xpos + ' - ' + (this.props.xpos + this.props.width) + '--' + (x > this.props.xpos && x < (this.props.xpos + this.props.width)));
-      console.log('is y between: ' + this.props.ypos + ' - ' + (this.props.ypos + this.props.height) + '--' + (y > this.props.ypos && y < (this.props.ypos + this.props.height)));
-    }*/
     if(x > this.props.xpos && x < (this.props.xpos + this.props.width) &&
         y > this.props.ypos && y < (this.props.ypos + this.props.height)) {
       return true;

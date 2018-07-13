@@ -1,7 +1,10 @@
 import React, { Component } from 'react';
 import { MOVE_UPDATE_FREQUENCY_SECS } from '../constants.js';
 
-
+/**
+ * Pinball is the primary moving object in the pinball game
+ * this class handles its display and some of its movement
+ */
 class Pinball extends Component {
 
   constructor(props)
@@ -15,10 +18,20 @@ class Pinball extends Component {
     };
   }
 
+  /**
+   * gets the state of the ball
+   * @return {StateObj}
+   */
   getState = () => {
     return this.state;
   }
 
+  /**
+   * applies force to the ball, updating its state with new speed values (the previous speed modified by the
+   * force parameters)
+   * @param float xforce - the force to apply to the ball along the x-axis
+   * @param float yforce - the force to apply to the ball along the y-axis
+   */
   applyForce = (xforce, yforce) => {
     this.setState((prevState) => {
 
@@ -29,6 +42,10 @@ class Pinball extends Component {
     }, this.move);
   }
 
+  /**
+   * checks to see if the ball is presently at its origin point
+   * @return boolean true if the ball is at its origin, false otherwise
+   */
   isAtOrigin = () => {
     if(this.state.xpos === this.props.origin.x - (this.props.size * 2) &&
        this.state.ypos === this.props.origin.y - (this.props.size * 2)){
@@ -37,6 +54,9 @@ class Pinball extends Component {
     return false;
   }
 
+  /**
+   * moves the ball back to its origin point
+   */
   resetToOrigin = () => {
     this.setState((prevState) => {
       return {
@@ -48,7 +68,14 @@ class Pinball extends Component {
     });
   }
 
-  //may need to move this up a level to get visibility to other objects
+  /**
+   * causes the ball to move, based on its present speed and position
+   * xpos: the new x-axis coordinate of the ball
+   * ypos: the new y-axis coordinate of the ball
+   * xspeed: the new speed of the ball along the x-axis, may be negative
+   * yspeed: the new speed of the ball along the y-axis, may be negative
+   * @return {xpos, ypos, xspeed, yspeed}
+   */
   move = () => {
     let ballLost = false;
     var updatedState;
@@ -80,6 +107,9 @@ class Pinball extends Component {
     });
   }
 
+  /**
+   * standard reactJs render function
+   */
   render() {
     let ballStyle = {
       "top": this.state.ypos + 'px',

@@ -1,3 +1,17 @@
+# primitivepinball is an attempt to make a rudimentary pinball machine in reactjs
+
+started as a hackweek project at SUSE, the goal was to work on my reactjs
+and to refresh some of my outdated math skills.
+
+currently the app has a long ways to go to be useful/entertaining, but
+it was a great learning experience for the week
+
+I don't recommend copying some of the reactjs hacks here ;-)
+
+to start the app, just clone this repo, run `npm install` from the clone, then `npm start` (or `sudo npm start`)
+
+
+
 This project was bootstrapped with [Create React App](https://github.com/facebookincubator/create-react-app).
 
 Below you will find some information on how to perform common tasks.<br>
