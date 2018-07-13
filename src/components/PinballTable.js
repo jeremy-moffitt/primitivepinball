@@ -2,16 +2,27 @@ import React, { Component } from 'react';
 import Pinball from './Pinball.js';
 import Obstacle from './Obstacle.js';
 import Draggable from 'react-draggable';
+import { DEFAULT_BALL_SIZE } from '../constants.js';
 
 import { MOVE_UPDATE_FREQUENCY_SECS, GRAVITY_Y_PULL } from '../constants.js';
 
+/**
+ * the parent container of the pinball game, the whole table
+ */
 class PinballTable extends Component {
 
+  /**
+   * for props this should have a height and width
+   * @prop height the height of the table in pixels
+   * @prop width the width of the table in pixels
+   */
   constructor(props){
     super(props);
     this.pinball = React.createRef();
-    this.pinballSize = 8;
+    this.pinballSize = DEFAULT_BALL_SIZE;
     this.floor = this.props.height - (this.pinballSize * 2);
+
+    //the table elements should probably be moved out to a json file or similar
     this.tableElements = [
       {
         type: 'wall',
@@ -57,15 +68,26 @@ class PinballTable extends Component {
       }
     ];
 
+    //create refs to each obstacle on the table
     for(const obstacle of this.tableElements){
       this[obstacle.id] = React.createRef();
     }
+
+    //the plugerKey is used to hack dragAndDrop position reset
+    //the flipperCollisionEnabled state is because the flippers move faster
+    //than the ball does and the math isnt there to bounce them back down
+    //when they collide with the ball
     this.state = {
       plungerKey: 0,
       flipperCollisionsEnabled: true
     }
   }
 
+  /**
+   * triggers the ball to be put into play, the further the plunger has been "pulled" the more force applied to the ball
+   * @param event mouse event from the drag and drop
+   * @param element the pluger element on the table, its position is used to determine how much force to apply
+   */
   plungered = (event, element) => {
     //is the ball at the starting point? if not, don't move it from the plunger applying force
     if(this.pinball.current.isAtOrigin()) {
@@ -79,6 +101,9 @@ class PinballTable extends Component {
     setTimeout(this.resetPlunger.bind(this), 200);
   }
 
+  /**
+   * sets the plunger back to its default position using a hack in react-draggable
+   */
   resetPlunger = () => {
     //react-draggable will reset a component state if its key changes
     // this is the quickest way to reset its state without learning
@@ -90,11 +115,16 @@ class PinballTable extends Component {
     });
   }
 
-  //reset the table, reset the ball to origin
+  /**
+   * called when the ball has hit the floor of the table, reset the table, reset the ball to origin
+   */
   ballLost = () => {
     this.pinball.current.resetToOrigin();
   }
 
+  /**
+   * move the flippers, check if they hit the ball
+   */
   triggerFlippers = () => {
     let currentObj, appliedForce;
     let pinball = this.pinball.current.getState();
@@ -118,6 +148,13 @@ class PinballTable extends Component {
     }
   }
 
+  /**
+   * changes whether flippers are checked for ball collisions
+   * flipperCollisions get turned off briefly when the flippers hit the ball because currently
+   * the ball position is not updated ahead of the flipper position, which causes the collision detection
+   * to think that the ball is *inside* of the flipper, causing the ball to get stuck...
+   * this is a hack but it mostly works
+   */
   setFlipperCollisions = (collisionsEnabled) => {
     this.setState((prevState) => {
       return {
@@ -126,12 +163,21 @@ class PinballTable extends Component {
     });
   }
 
-  //this will check collisions and return the new state of the ball
+  /**
+   * this will check collisions and return the new state of the ball
+   * @param xpos the x-axis coordinate of the ball
+   * @param ypos the y-axis coordinate of the ball
+   * @param xspeed the speed along the x-axis of the ball (can be negative)
+   * @param yspeed the speed along the y-axis of the ball (can be negative)
+   * @return { xpos, ypos, xspeed, yspeed } updated values for the position and speed
+   */
   ballWantsToMove = (xpos, ypos, xspeed, yspeed) => {
     let newXPos = xpos;
     let newYPos = ypos;
     let newXSpeed = xspeed;
     let newYSpeed = yspeed;
+
+    //check for side wall collisions
     if(xpos + (this.pinballSize * 2) + (xspeed * MOVE_UPDATE_FREQUENCY_SECS) > this.props.width){ //ball hit into right side table wall
       newXPos = this.props.width - (this.pinballSize * 2);
       newXSpeed = -1 * xspeed;
@@ -139,9 +185,12 @@ class PinballTable extends Component {
       newXPos = 0;
       newXSpeed = -1 * xspeed;
     } else {
+      //adjust the speed based on how frequently the display is being updated, keeps the movement calculations
+      //somewhat constant regardless of draw speed
       newXPos = xpos + (xspeed * MOVE_UPDATE_FREQUENCY_SECS);
     }
 
+    //check for top/bottom of table collisions
     if(ypos + (this.pinballSize * 2) + (yspeed * MOVE_UPDATE_FREQUENCY_SECS) > this.props.height){ //ball hit bottom of table
       newYPos = this.floor;
       newYSpeed = 0;
@@ -150,6 +199,8 @@ class PinballTable extends Component {
       newYSpeed = 0;
     } else {
       newYPos = ypos + (yspeed * MOVE_UPDATE_FREQUENCY_SECS);
+      //adjust the speed based on how frequently the display is being updated, keeps the movement calculations
+      //somewhat constant regardless of draw speed
       newYSpeed = yspeed + (GRAVITY_Y_PULL * MOVE_UPDATE_FREQUENCY_SECS);
     }
 
@@ -160,6 +211,8 @@ class PinballTable extends Component {
     for(let i = 0; i < ballTouchPoints.length; i++){
       collision = this.checkCollisions(ballTouchPoints[i].ballX, ballTouchPoints[i].ballY,
           ballTouchPoints[i].ballX + newXSpeed, ballTouchPoints[i].ballY, + newYSpeed);
+
+      //if there was a collision, apply the obstacles collision logic to the ball
       if(collision.collisionPoint) {
         //found a collision!
         let updatedSpeed = collision.obstacleObj.impactOfCollision(
@@ -185,7 +238,16 @@ class PinballTable extends Component {
     })
   }
 
-  //Need to check if the ball is going to collide with anything
+  /**
+   * Need to check if the ball is going to collide with anything. This will get called for multiple touchpoints
+   * of the ball, depending on which direction the ball is moving
+   * @param startX the x coordinate of the ball before movement has been applied
+   * @param startY the y coordinate of the ball before movement has been applied
+   * @param endX the desired end coordinate along the X axis
+   * @param endY the desired end coordinate along the Y axis
+   * @return { collisionPoint, obstacle, obstacleobj } the point of collision, the obstacle of the collision, and the
+   *  javascript object representing that obstacle, all will be undefined if there is no collision
+   */
   checkCollisions(startX, startY, endX, endY){
     let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined, collidedWith = undefined, collidedObj = undefined;
     let lengthOfLine = Math.round(Math.sqrt(Math.pow(startX - endX, 2) + Math.pow(startY - endY, 2)));
@@ -193,15 +255,21 @@ class PinballTable extends Component {
     let rateOfChangeY = (startY - endY) / lengthOfLine;
     let lineX = startX, lineY = startY;
     let currentObj;
+
+    //for each obstacle, walk along the line representing the balls path and see if any point along the line
+    //intersects with the obstacle
     for(const obstacle of this.tableElements){
       currentObj = this[obstacle.id];//try to get the ref
+      //only check flippers if flipperCollisions haven't been disabled temporarily
       if(obstacle.type !== 'flipper' || this.state.flipperCollisionsEnabled === true) {
         for (let i = 0; i < lengthOfLine; i++) {
           lineX = startX + (i * rateOfChangeX);
           lineY = startY + (i * rateOfChangeY);
-          if (currentObj.current.isPointInBoundary(lineX, lineY, obstacle)) {
+          if (currentObj.current.isPointInBoundary(lineX, lineY)) {
             //found a collision, but is it closer to our point of origin than any previous
             //collisions?
+            //only the collision closest to the ball matters, since that collision would happen first as
+            //the movement plays out
             let distanceFromStart = Math.round(Math.sqrt(Math.pow(startX - lineX, 2) + Math.pow(startY - lineY, 2)));
             if (nearestCollisionDistance === undefined ||
                 distanceFromStart < nearestCollisionDistance) {
@@ -225,6 +293,17 @@ class PinballTable extends Component {
     };
   }
 
+  /**
+   * get the set of coordinates to check for collisions based on which direction the ball is moving
+   * if the ball is moving straight up, there is no need to check any of the bottom half of the ball
+   * if the ball is moving down, wthere is no need to check any of the top half of the ball
+   * similar for left/right, only check in the direction the ball is moving, the trailing side of the ball
+   * is irrelevant and a waste of calculations
+   * @return [{ballX, ballY, point, offsetX, offsetY}] ... array of objects, ballX is the x-coordinate of touchpoint
+   *  ballY is the y-coordinate of the touchpoint , point is a string rep of which point it is (mostly for debugging)
+   *  offsetX is how far off of the center of the ball the touchpoint is along the x-axis
+   *  offsetY is how far off of the center of the ball the touchpoint is along the y-axis
+   */
   getBallTouchPoints = () =>{
     let ballState = this.pinball.current.getState();
     let ballTouchPoints = [];
@@ -301,7 +380,9 @@ class PinballTable extends Component {
     return ballTouchPoints;
   }
 
-
+  /**
+   * standard reactjs render function
+   */
   render() {
     let tableSize = {
       "height": this.props.height + 'px',

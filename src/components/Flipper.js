@@ -1,9 +1,19 @@
 import React, { Component } from 'react';
 
+/**
+ * Flippers are the paddles on the table that can be used to knock the ball around
+ */
 class Flipper extends Component {
 
   //Props for this class should be
   //xpos, ypos, length, angle, arc
+  /**
+   * @prop xpos the x coordinate of the "anchor" of the flipper
+   * @prop ypos the y coordinate of the "anchor" of the flipper
+   * @prop length the length of the flipper
+   * @prop angle the starting angle of the flipper (also determines if its facing left or right)
+   * @prop arc the maximum movement arc (in degrees) of the flipper, can be negative
+   */
   constructor(props){
     super(props);
     this.flipperWidth = 5;
@@ -14,6 +24,16 @@ class Flipper extends Component {
 
   }
 
+  /**
+   * triggers the flipper to "flip" from its resting position to its "flipped" position
+   * based on the arc in its props, if the flipper intersects with the ball, return the force applied to the ball
+   *
+   * @param ballX the x coordinate of the ball
+   * @param ballY the y coordinate of the ball
+   * @param ballXSpeed how fast the ball is moving along the X-axis, can be negative
+   * @param ballYSpeed how fast the ball is moving along the Y-axis, can be negative
+   * @return appliedForce { x: appliedforce along x-axis , y: applied forice along y axis}
+   */
   flip(ballX, ballY, ballXSpeed, ballYSpeed, ballRadius) {
     if(this.positionUpdate){
       clearTimeout(this.positionUpdate);
@@ -22,8 +42,7 @@ class Flipper extends Component {
     //this.positionUpdate = setTimeout(this.checkFlipperAngle, 100);
     setTimeout(this.checkFlipperAngle, 100);
 
-    //for now only checking if the ball is hit from below, but this should result in at least 3 (possibly 5 or more)
-    //data points to check
+    //check the relevant touchpoints of the ball against the path of the flipper
     let ballTouchPoints = this.props.ballTouchPoints();
     let appliedForce = undefined;
     for(let i = 0; i < ballTouchPoints.length; i++){
@@ -33,6 +52,7 @@ class Flipper extends Component {
       }
     }
 
+    //if there was no collision, don't apply any new force
     if(appliedForce === undefined){
       appliedForce = {
         x: 0,
@@ -42,6 +62,15 @@ class Flipper extends Component {
     return appliedForce;
   }
 
+  /**
+   * does the calculations for whether the ball intersected with the moving flipper and returns applied force
+   *
+   * @param ballX the x coordinate of the ball
+   * @param ballY the y coordinate of the ball
+   * @param ballXSpeed how fast the ball is moving along the X-axis, can be negative
+   * @param ballYSpeed how fast the ball is moving along the Y-axis, can be negative
+   * @return appliedForce { x: appliedforce along x-axis , y: applied forice along y axis}
+   */
   checkFlipperUpswing(ballX, ballY, ballXSpeed, ballYSpeed){
     let appliedForce = undefined;
     //need to figure out if the ball is within the arc that the flipper is traveling
@@ -82,11 +111,25 @@ class Flipper extends Component {
     return appliedForce;
   }
 
-  //takes the 3 points of the triangle and calculates the area
+  /**
+   * takes the 3 points of the triangle and calculates the area
+   * @param x1 the x coordinate of point1
+   * @param y1 the y coordinate of point1
+   * @param x2 the x coordinate of point2
+   * @param y2 the y coordinate of point2
+   * @param x3 the x coordinate of point3
+   * @param y3 the y coordinate of point3
+   * @return int the area of the triangle
+   */
   areaOfTriangle( x1 , y1 , x2 , y2 , x3 , y3 ){
     return Math.abs((x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2)) / 2);
   }
 
+  /**
+   * checks the flippers current position against its resting state, moves it towards the resting state
+   * if it is not presently resting
+   * @return float the angle in degrees of the flipper in its current state
+   */
   checkFlipperAngle = () => {
     if(this.state.currentAngle === this.props.angle){
       return this.state.currentAngle;
@@ -107,6 +150,10 @@ class Flipper extends Component {
     }
   }
 
+  /**
+  * changes the current angle of the flipper
+  * @param angle the new angle value in degrees
+  */
   changeFlipperAngle = (angle) => {
     this.setState((prevState) => {
       return {
@@ -115,6 +162,9 @@ class Flipper extends Component {
     });
   }
 
+  /**
+   * standard reactJs render function
+   */
   render() {
     let background = this.props.background || 'red';
 
@@ -132,7 +182,16 @@ class Flipper extends Component {
         )
   }
 
-  // atlen is how far along the length of the flipper
+  /**
+   * find out where the top and bottom of the flipper are, for a particular spot along its length
+   * e.g. if the flipper is 40 pixels long, atlen would be a value between 0..40 and this will return
+   * information about the flipper at that specific spot along its length
+   * @param atlen integer representing how far along the length of the flipper to check, defaults to the end of the flipper
+   * @param angle the angle at which to check for position, defaults to the currentAngle of the flipper
+   * @return { yTop, yBottom, minX, maxX } top and bottom of the flipper (top will be a lower number because
+   *  in html 0,0 is the top left of the back), and the min and max of X (in absolute page coordinates) at that length
+   *  of the flipper
+   */
   getFlipperCoords(atlen = this.props.length, angle = this.state.currentAngle){
     let yTop, yBottom, minX, maxX;
 
@@ -186,6 +245,16 @@ class Flipper extends Component {
     })
   }
 
+  /**
+   * determine how the pinball should have its speed changed based on collision with the flipper
+   * @param startX the x coordinate of the pinball before its current move calculation started
+   * @param startY the y coordinate of the pinball before its current move calculation started
+   * @param x the target x coordinate for the pinball based on its present speed
+   * @param y the target y coordinate for the pinball based on its present speed
+   * @param xspeed the current speed of the ball along the x-axis
+   * @param yspeed the current speed of the ball along the y-axis
+   * @return { newXSpeed : resulting speed along the x-axis , newYSpeed: resulting speed along the y-axis}
+   */
   impactOfCollision(startX, startY, x, y, xspeed, yspeed){
     let newXSpeed;
     let newYSpeed = yspeed;
@@ -218,6 +287,13 @@ class Flipper extends Component {
     }
   }
 
+  /**
+   * determines whether a particular x,y coordinate is within area of the flipper,
+   * used to determine collisions
+   * @param x the x-coordinate to check against the shape of the flipper
+   * @param y the y-coordinate to check against the shape of the flipper
+   * @return boolean true if the coordinate is within the flipper area, false if not
+   */
   isPointInBoundary(x, y) {
     let flipperCoords = this.getFlipperCoords(Math.abs(x - this.props.xpos));
 
