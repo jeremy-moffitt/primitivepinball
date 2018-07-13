@@ -69,12 +69,12 @@ class PinballTable extends Component {
   plungered = (event, element) => {
     //is the ball at the starting point? if not, don't move it from the plunger applying force
     if(this.pinball.current.isAtOrigin()) {
-      //this.pinball.current.applyForce(element.y * (-0.15), element.y * (-2.00));
+      this.pinball.current.applyForce(element.y * (-0.25), element.y * (-2.00));
       //for testing left flipper collision uncomment out below and comment out above
       //this.pinball.current.applyForce(-15, -20);
 
       //for testing right flipper collision uncomment out below and comment out above
-      this.pinball.current.applyForce(-7, -25);
+      //this.pinball.current.applyForce(-7, -25);
     }
     setTimeout(this.resetPlunger.bind(this), 200);
   }
@@ -112,7 +112,7 @@ class PinballTable extends Component {
           this.pinball.current.applyForce(appliedForce.x, appliedForce.y);
           setTimeout(() => {
             this.setFlipperCollisions(true);
-          }, 500);//turn collisions back 500ms later
+          }, 200);//turn collisions back 200ms later
         }
       }
     }
@@ -153,39 +153,27 @@ class PinballTable extends Component {
       newYSpeed = yspeed + (GRAVITY_Y_PULL * MOVE_UPDATE_FREQUENCY_SECS);
     }
 
-    let collisionPoint;
-    //should move this code to individual obstacles since they may have impact on the ball movement
-    // currently only checks farthest point in direction traveled, should really check 3 points (add diagonals)
-    // for each direction
-    if(newYSpeed > 0) {//ball is traveling downward
-      collisionPoint = this.checkCollisions(xpos, ypos + this.pinballSize, newXPos, newYPos + this.pinballSize).collisionPoint;
-      if(collisionPoint) {
+    let collision;
+    // check each obstacle against each touchpoint of the ball, if a collision is found,
+    // don't allow the ball to move to that spot, and change its speed per the object rules
+    let ballTouchPoints = this.getBallTouchPoints();
+    for(let i = 0; i < ballTouchPoints.length; i++){
+      collision = this.checkCollisions(ballTouchPoints[i].ballX, ballTouchPoints[i].ballY,
+          ballTouchPoints[i].ballX + newXSpeed, ballTouchPoints[i].ballY, + newYSpeed);
+      if(collision.collisionPoint) {
         //found a collision!
-        newYPos = collisionPoint.y - (2 * this.pinballSize);
-        newYSpeed = 0;
-      }
-    } else if (newYSpeed < 0){//ball is traveling upwards
-      collisionPoint = this.checkCollisions(xpos, ypos - this.pinballSize, newXPos, newYPos - this.pinballSize).collisionPoint;
-      if(collisionPoint) {
-        //found a collision!
-        newYPos = collisionPoint.y + (2 * this.pinballSize);
-        newYSpeed = 0;
-      }
-    }
-
-    if(newXSpeed > 0) {//ball is traveling right
-      collisionPoint = this.checkCollisions(xpos + this.pinballSize, newYPos, newXPos + this.pinballSize).collisionPoint;
-      if(collisionPoint) {
-        //found a collision!
-        newXPos = collisionPoint.x - (2 * this.pinballSize);
-        newXSpeed = 0;
-      }
-    } else if (newXSpeed < 0){//ball is traveling left
-      collisionPoint = this.checkCollisions(xpos - this.pinballSize, newYPos, newXPos - this.pinballSize, newYPos).collisionPoint;
-      if(collisionPoint) {
-        //found a collision!
-        newXPos = collisionPoint.x + (2 * this.pinballSize);
-        newXSpeed = 0;
+        let updatedSpeed = collision.obstacleObj.impactOfCollision(
+            xpos,
+            ypos,
+            ballTouchPoints[i].x,
+            ballTouchPoints[i].y,
+            xspeed,
+            yspeed);
+        newYSpeed = updatedSpeed.newYSpeed;
+        newXSpeed = updatedSpeed.newXSpeed;
+        newXPos = xpos - ballTouchPoints[i].offsetX;
+        newYPos = ypos - ballTouchPoints[i].offsetY;
+        break;
       }
     }
 
@@ -199,7 +187,7 @@ class PinballTable extends Component {
 
   //Need to check if the ball is going to collide with anything
   checkCollisions(startX, startY, endX, endY){
-    let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined, collidedWith = undefined;
+    let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined, collidedWith = undefined, collidedObj = undefined;
     let lengthOfLine = Math.round(Math.sqrt(Math.pow(startX - endX, 2) + Math.pow(startY - endY, 2)));
     let rateOfChangeX = (startX - endX) / lengthOfLine;
     let rateOfChangeY = (startY - endY) / lengthOfLine;
@@ -209,9 +197,8 @@ class PinballTable extends Component {
       currentObj = this[obstacle.id];//try to get the ref
       if(obstacle.type !== 'flipper' || this.state.flipperCollisionsEnabled === true) {
         for (let i = 0; i < lengthOfLine; i++) {
-          lineX = Math.round(startX + (i * rateOfChangeX));
-          lineY = Math.round(startY + (i * rateOfChangeY));
-
+          lineX = startX + (i * rateOfChangeX);
+          lineY = startY + (i * rateOfChangeY);
           if (currentObj.current.isPointInBoundary(lineX, lineY, obstacle)) {
             //found a collision, but is it closer to our point of origin than any previous
             //collisions?
@@ -224,6 +211,7 @@ class PinballTable extends Component {
                 y: lineY
               };
               collidedWith = obstacle;
+              collidedObj = currentObj.current;
             }
           }
         }
@@ -232,30 +220,83 @@ class PinballTable extends Component {
 
     return {
       collisionPoint: nearestCollisionPoint,
-      obstacle: collidedWith
+      obstacle: collidedWith,
+      obstacleObj: collidedObj
     };
   }
 
   getBallTouchPoints = () =>{
     let ballState = this.pinball.current.getState();
-    let ballTouchPoints = [
-      {//bottom of the ball
-        ballX: ballState.xpos,
-        ballY: ballState.ypos + this.pinballSize
-      },
-      { //bottom left
-        ballX: ballState.xpos - Math.round(Math.sin(135) * this.pinballSize),
-        ballY: ballState.ypos + Math.round(Math.cos(135) * this.pinballSize)
-      },
-      {//bottom right
-        ballX: ballState.xpos + Math.round(Math.sin(45) * this.pinballSize),
-        ballY: ballState.ypos + Math.round(Math.cos(45) * this.pinballSize)
-      },
-      {//center of the ball shouldn't be needed, but this is finicky
-        ballX: ballState.xpos,
-        ballY: ballState.ypos
+    let ballTouchPoints = [];
+    if(ballState.xspeed > 0){
+      ballTouchPoints.push({//right
+        ballX: ballState.xpos + this.pinballSize,
+        ballY: ballState.ypos,
+        point: 'right',
+        offsetX: this.pinballSize,
+        offsetY: 0
+      });
+      if(ballState.yspeed < 0) {
+        ballTouchPoints.push({//top right
+          ballX: ballState.xpos + Math.round(Math.sin(45) * this.pinballSize),
+          ballY: ballState.ypos - Math.round(Math.cos(45) * this.pinballSize),
+          point: 'top-right',
+          offsetX: Math.round(Math.sin(45) * this.pinballSize),
+          offsetY: (-1 * Math.round(Math.cos(45) * this.pinballSize))
+        });
+      } else {
+        ballTouchPoints.push({//bottom right
+          ballX: ballState.xpos + Math.round(Math.sin(45) * this.pinballSize),
+          ballY: ballState.ypos + Math.round(Math.cos(45) * this.pinballSize),
+          point: 'bottom-right',
+          offsetX: Math.round(Math.sin(45) * this.pinballSize),
+          offsetY:  Math.round(Math.cos(45) * this.pinballSize)
+        });
       }
-    ];
+    } else if(ballState.xspeed < 0){
+      ballTouchPoints.push({ //left
+        ballX: ballState.xpos - this.pinballSize,
+        ballY: ballState.ypos,
+        point: 'left',
+        offsetX: (-1 * this.pinballSize),
+        offsetY: 0
+      });
+      if(ballState.yspeed < 0) {
+        ballTouchPoints.push({ //top left
+          ballX: ballState.xpos - Math.round(Math.sin(45) * this.pinballSize),
+          ballY: ballState.ypos - Math.round(Math.cos(45) * this.pinballSize),
+          point: 'top-left',
+          offsetX: (-1 *  Math.round(Math.sin(45) * this.pinballSize)),
+          offsetY: (-1 *  Math.round(Math.cos(45) * this.pinballSize))
+        });
+      } else {
+        ballTouchPoints.push({ //bottom left
+          ballX: ballState.xpos - Math.round(Math.sin(45) * this.pinballSize),
+          ballY: ballState.ypos + Math.round(Math.cos(45) * this.pinballSize),
+          point: 'bottom left',
+          offsetX: (-1 * Math.round(Math.sin(45) * this.pinballSize)),
+          offsetY: Math.round(Math.cos(45) * this.pinballSize)
+        });
+      }
+    }
+
+    if(ballState.yspeed > 0) {
+      ballTouchPoints.push({//bottom of the ball
+        ballX: ballState.xpos,
+        ballY: ballState.ypos + this.pinballSize,
+        point: 'bottom',
+        offsetX: 0,
+        offsetY: this.pinballSize
+      });
+    } else if(ballState.yspeed < 0) {
+      ballTouchPoints.push({//top of the ball
+        ballX: ballState.xpos,
+        ballY: ballState.ypos - this.pinballSize,
+        point: 'top',
+        offsetX: 0,
+        offsetY: (-1 * this.pinballSize)
+      });
+    }
 
     return ballTouchPoints;
   }
@@ -291,7 +332,8 @@ class PinballTable extends Component {
                      size={this.pinballSize}
                      balllost={this.ballLost}/>
           { this.tableElements.map(item =>
-              <Obstacle {...item} key={item.id} flip={this.state.flip} ref={this[item.id]} ballTouchPoints={this.getBallTouchPoints}/> ) }
+              <Obstacle {...item} key={item.id} flip={this.state.flip} ref={this[item.id]}
+              ballTouchPoints={this.getBallTouchPoints} centerOfTable={(this.props.width / 2)}/> ) }
           </div>
           <Draggable
             onStop={this.plungered}
