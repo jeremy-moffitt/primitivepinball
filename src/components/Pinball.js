@@ -51,15 +51,12 @@ class Pinball extends Component {
   //may need to move this up a level to get visibility to other objects
   move = () => {
     let ballLost = false;
+    var updatedState;
     this.setState((prevState) => {
-      let updatedState = this.props.ballWantsToMove(prevState.xpos, prevState.ypos, prevState.xspeed, prevState.yspeed);
-
+      updatedState = this.props.ballWantsToMove(prevState.xpos, prevState.ypos, prevState.xspeed, prevState.yspeed);
       if(!this.isAtOrigin() && updatedState.ypos === this.props.floor){
         //ball lost, let the table know
         ballLost = true;
-      } else if(updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
-         updatedState.ypos !== this.props.floor ){
-        setTimeout(this.move.bind(this), (MOVE_UPDATE_FREQUENCY_SECS * 100));
       }
 
       return {
@@ -69,12 +66,18 @@ class Pinball extends Component {
         yspeed: updatedState.yspeed
       }
 
-    });
+    }, () =>{
+      if(!ballLost && updatedState &&
+        (updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
+         updatedState.ypos !== this.props.floor)){
+        setTimeout(this.move.bind(this), (MOVE_UPDATE_FREQUENCY_SECS * 100));
+      }
 
-    //need to call this from outside of the setState function to avoid nested setState calls
-    if(ballLost){
-      this.props.balllost();
-    }
+      //need to call this from outside of the setState function to avoid nested setState calls
+      if(ballLost){
+        this.props.balllost();
+      }
+    });
   }
 
   render() {

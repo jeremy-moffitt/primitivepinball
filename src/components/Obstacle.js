@@ -13,6 +13,10 @@ class Obstacle extends Component {
     return this.myActualComponent.current.isPointInBoundary(x , y , obstacleprops);
   }
 
+  impactOfCollision(startX, startY, x, y, xspeed, yspeed){
+    return this.myActualComponent.current.impactOfCollision(startX, startY, x, y, xspeed, yspeed);
+  }
+
   getActualComponent(){
     return this.myActualComponent.current;
   }

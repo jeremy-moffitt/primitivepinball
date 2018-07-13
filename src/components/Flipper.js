@@ -11,6 +11,7 @@ class Flipper extends Component {
     this.state = {
       currentAngle: this.props.angle
     }
+
   }
 
   flip(ballX, ballY, ballXSpeed, ballYSpeed, ballRadius) {
@@ -183,6 +184,38 @@ class Flipper extends Component {
       minX: minX,
       maxX: maxX
     })
+  }
+
+  impactOfCollision(startX, startY, x, y, xspeed, yspeed){
+    let newXSpeed;
+    let newYSpeed = yspeed;
+
+    //have this.state.currentAngle for the current angle of the flipper
+    // need to figure out what angle the ball is coming in at
+    // triangle would be (startX,startY) , (x,y), (x, startY)
+    // (or alternately (startX, startY), (x,y), (startX, y)
+    // start by getting the angle of approach to the X-axis of the ball
+    // A = arccos( (b^2 + c^2 - a^2) / 2bc ) where a is the opposite side length
+    // a = abs(yspeed)
+    // c = abs(xspeed)
+    // b = sqrt(a^2 + b^2)
+    let a = Math.abs(yspeed);
+    let c = Math.abs(xspeed);
+    let b = Math.sqrt(Math.pow(a,2) + Math.pow(c,2));
+    let A = Math.acos((Math.pow(b,2) + Math.pow(c,2) - Math.pow(a,2)) / (2 * b * c));
+    A = A * (180 / Math.PI);//convert radians to degrees
+
+    let angleDifference = Math.abs(A - this.state.currentAngle);
+    let outBoundAngle = this.state.currentAngle + 180 - angleDifference;
+    let netSpeed = Math.sqrt(Math.pow(yspeed, 2) + Math.pow(xspeed,2));
+    //using the outbound angle, figure out new speeds, same momentum different direction
+    newYSpeed = netSpeed * Math.sin(outBoundAngle % 90);
+    newXSpeed = netSpeed * Math.cos(outBoundAngle % 90);
+
+    return {
+      newXSpeed: newXSpeed,
+      newYSpeed: newYSpeed
+    }
   }
 
   isPointInBoundary(x, y) {
