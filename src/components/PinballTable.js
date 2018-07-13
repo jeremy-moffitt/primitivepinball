@@ -134,16 +134,16 @@ class PinballTable extends Component {
     let newYSpeed = yspeed;
     if(xpos + (this.pinballSize * 2) + (xspeed * MOVE_UPDATE_FREQUENCY_SECS) > this.props.width){ //ball hit into right side table wall
       newXPos = this.props.width - (this.pinballSize * 2);
-      newXSpeed = 0;
+      newXSpeed = -1 * xspeed;
     } else if(xpos + (xspeed * MOVE_UPDATE_FREQUENCY_SECS) < 0) { //ball hit into left side table wall
       newXPos = 0;
-      newXSpeed = 0;
+      newXSpeed = -1 * xspeed;
     } else {
       newXPos = xpos + (xspeed * MOVE_UPDATE_FREQUENCY_SECS);
     }
 
     if(ypos + (this.pinballSize * 2) + (yspeed * MOVE_UPDATE_FREQUENCY_SECS) > this.props.height){ //ball hit bottom of table
-      newYPos = this.floor;//should probably move this up a level and set it via props in pinball
+      newYPos = this.floor;
       newYSpeed = 0;
       } else if(ypos + (yspeed * MOVE_UPDATE_FREQUENCY_SECS) < 0) { //ball hit into ceiling
       newYPos = 0;
