@@ -2,22 +2,30 @@
   "name": "primitivepinball",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
   "dependencies": {
-    "react": "^16.4.1",
-    "react-dom": "^16.4.1",
-    "react-scripts": "1.1.4"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-draggable": "^4.7.2"
   },
   "scripts": {
-    "start": "react-scripts start | npm run watchless",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject",
-    "less": "./node_modules/.bin/lessc ./src/styles/pinball.less ./src/Pinball.css",
-    "watchless": "watch-run -p '**/*.less' npm run less"
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "less": "^3.5.3",
-    "react-draggable": "^3.0.5",
-    "watch-run": "^1.2.5"
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@vitejs/plugin-react": "^6.3.0",
+    "jsdom": "^31.0.1",
+    "less": "^4.9.1",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

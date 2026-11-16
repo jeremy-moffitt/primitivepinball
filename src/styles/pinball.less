@@ -1,12 +1,18 @@
 .pinball-table {
+  position: relative;
   border: 1px solid gray;
   background-color: white;
+}
+
+.game-board {
+  position: relative;
+  margin: 0 auto;
 }
 
 .pinball {
   background-color: silver;
   position: absolute;
-  z-index: 99999999;
+  z-index: 2;
 }
 
 .wall {
@@ -17,18 +23,32 @@
   position: absolute;
 }
 
-.flipperButton{
+.flipperButton {
   position: absolute;
   margin-left: 2px;
   background-color: red;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
   height: 30px;
   width: 20px;
 }
 
-.plunger{
+.flipperButton:focus-visible {
+  outline: 3px solid #f3e7c7;
+  outline-offset: 3px;
+}
+
+.plunger {
   background-color: brown;
+  cursor: grab;
+  touch-action: none;
   width: 20px;
   height: 100px;
   position: absolute;
-  z-index: -1;
+  z-index: 1;
+}
+
+.plunger:active {
+  cursor: grabbing;
 }
