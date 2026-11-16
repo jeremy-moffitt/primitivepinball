@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
-import Wall from './Wall.js';
-import Flipper from './Flipper.js';
+import Wall from './Wall.jsx';
+import Flipper from './Flipper.jsx';
 
 /**
  * the obstacle class is basically an interface for more specific obstacle types

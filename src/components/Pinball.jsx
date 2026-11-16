@@ -97,7 +97,11 @@ class Pinball extends Component {
       if(!ballLost && updatedState &&
         (updatedState.xspeed !== 0 || updatedState.yspeed !== 0 ||
          updatedState.ypos !== this.props.floor)){
-        setTimeout(this.move.bind(this), (MOVE_UPDATE_FREQUENCY_SECS * 100));
+        setTimeout(this.move, MOVE_UPDATE_FREQUENCY_SECS * 1000);
+      }
+
+      if(updatedState && updatedState.bumperHit && this.props.bumperHit) {
+        this.props.bumperHit();
       }
 
       //need to call this from outside of the setState function to avoid nested setState calls

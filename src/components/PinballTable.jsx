@@ -1,10 +1,12 @@
 import React, { Component } from 'react';
-import Pinball from './Pinball.js';
-import Obstacle from './Obstacle.js';
+import Pinball from './Pinball.jsx';
+import Obstacle from './Obstacle.jsx';
 import Draggable from 'react-draggable';
-import { DEFAULT_BALL_SIZE } from '../constants.js';
-
-import { MOVE_UPDATE_FREQUENCY_SECS, GRAVITY_Y_PULL } from '../constants.js';
+import {
+  DEFAULT_BALL_SIZE,
+  GRAVITY_Y_PULL,
+  MOVE_UPDATE_FREQUENCY_SECS
+} from '../constants.js';
 
 /**
  * the parent container of the pinball game, the whole table
@@ -19,6 +21,7 @@ class PinballTable extends Component {
   constructor(props){
     super(props);
     this.pinball = React.createRef();
+    this.plungerRef = React.createRef();
     this.pinballSize = DEFAULT_BALL_SIZE;
     this.floor = this.props.height - (this.pinballSize * 2);
 
@@ -30,6 +33,7 @@ class PinballTable extends Component {
         ypos: 320,
         width: 60,
         height: 10,
+        angle: 12,
         id: 'wall1'
       },
       {
@@ -38,6 +42,7 @@ class PinballTable extends Component {
         ypos: 320,
         width: 60,
         height: 10,
+        angle: 12,
         id: 'wall2'
       },
       {
@@ -46,6 +51,7 @@ class PinballTable extends Component {
         ypos: 400,
         width: 60,
         height: 10,
+        angle: 12,
         id: 'wall3'
       },
       {
@@ -176,6 +182,7 @@ class PinballTable extends Component {
     let newYPos = ypos;
     let newXSpeed = xspeed;
     let newYSpeed = yspeed;
+    let bumperHit = false;
 
     //check for side wall collisions
     if(xpos + (this.pinballSize * 2) + (xspeed * MOVE_UPDATE_FREQUENCY_SECS) > this.props.width){ //ball hit into right side table wall
@@ -209,23 +216,30 @@ class PinballTable extends Component {
     // don't allow the ball to move to that spot, and change its speed per the object rules
     let ballTouchPoints = this.getBallTouchPoints();
     for(let i = 0; i < ballTouchPoints.length; i++){
-      collision = this.checkCollisions(ballTouchPoints[i].ballX, ballTouchPoints[i].ballY,
-          ballTouchPoints[i].ballX + newXSpeed, ballTouchPoints[i].ballY, + newYSpeed);
+      const touchPoint = ballTouchPoints[i];
+      collision = this.checkCollisions(
+        touchPoint.ballX,
+        touchPoint.ballY,
+        touchPoint.ballX + (newXPos - xpos),
+        touchPoint.ballY + (newYPos - ypos)
+      );
 
       //if there was a collision, apply the obstacles collision logic to the ball
       if(collision.collisionPoint) {
         //found a collision!
+        bumperHit = collision.obstacle.type === 'wall';
         let updatedSpeed = collision.obstacleObj.impactOfCollision(
-            xpos,
-            ypos,
-            ballTouchPoints[i].x,
-            ballTouchPoints[i].y,
+            xpos + this.pinballSize,
+            ypos + this.pinballSize,
+            collision.collisionPoint.x,
+            collision.collisionPoint.y,
             xspeed,
             yspeed);
         newYSpeed = updatedSpeed.newYSpeed;
         newXSpeed = updatedSpeed.newXSpeed;
-        newXPos = xpos - ballTouchPoints[i].offsetX;
-        newYPos = ypos - ballTouchPoints[i].offsetY;
+        const safePoint = collision.lastSafePoint || collision.collisionPoint;
+        newXPos = safePoint.x - touchPoint.offsetX;
+        newYPos = safePoint.y - touchPoint.offsetY;
         break;
       }
     }
@@ -234,7 +248,8 @@ class PinballTable extends Component {
       xpos: newXPos,
       ypos: newYPos,
       xspeed: newXSpeed,
-      yspeed: newYSpeed
+      yspeed: newYSpeed,
+      bumperHit
     })
   }
 
@@ -245,15 +260,26 @@ class PinballTable extends Component {
    * @param startY the y coordinate of the ball before movement has been applied
    * @param endX the desired end coordinate along the X axis
    * @param endY the desired end coordinate along the Y axis
-   * @return { collisionPoint, obstacle, obstacleobj } the point of collision, the obstacle of the collision, and the
-   *  javascript object representing that obstacle, all will be undefined if there is no collision
+   * @return { collisionPoint, lastSafePoint, obstacle, obstacleObj } collision data, or undefined values when there
+   *  is no collision
    */
   checkCollisions(startX, startY, endX, endY){
-    let nearestCollisionPoint = undefined, nearestCollisionDistance = undefined, collidedWith = undefined, collidedObj = undefined;
-    let lengthOfLine = Math.round(Math.sqrt(Math.pow(startX - endX, 2) + Math.pow(startY - endY, 2)));
-    let rateOfChangeX = (startX - endX) / lengthOfLine;
-    let rateOfChangeY = (startY - endY) / lengthOfLine;
-    let lineX = startX, lineY = startY;
+    let nearestCollisionPoint = undefined;
+    let nearestSafePoint = undefined;
+    let nearestCollisionDistance = undefined;
+    let collidedWith = undefined;
+    let collidedObj = undefined;
+    let lengthOfLine = Math.ceil(Math.hypot(endX - startX, endY - startY));
+    if(lengthOfLine === 0) {
+      return {
+        collisionPoint: undefined,
+        lastSafePoint: undefined,
+        obstacle: undefined,
+        obstacleObj: undefined
+      };
+    }
+    let rateOfChangeX = (endX - startX) / lengthOfLine;
+    let rateOfChangeY = (endY - startY) / lengthOfLine;
     let currentObj;
 
     //for each obstacle, walk along the line representing the balls path and see if any point along the line
@@ -262,15 +288,19 @@ class PinballTable extends Component {
       currentObj = this[obstacle.id];//try to get the ref
       //only check flippers if flipperCollisions haven't been disabled temporarily
       if(obstacle.type !== 'flipper' || this.state.flipperCollisionsEnabled === true) {
-        for (let i = 0; i < lengthOfLine; i++) {
-          lineX = startX + (i * rateOfChangeX);
-          lineY = startY + (i * rateOfChangeY);
+        let lastSafePoint = {
+          x: startX,
+          y: startY
+        };
+        for (let i = 1; i <= lengthOfLine; i++) {
+          const lineX = startX + (i * rateOfChangeX);
+          const lineY = startY + (i * rateOfChangeY);
           if (currentObj.current.isPointInBoundary(lineX, lineY)) {
             //found a collision, but is it closer to our point of origin than any previous
             //collisions?
             //only the collision closest to the ball matters, since that collision would happen first as
             //the movement plays out
-            let distanceFromStart = Math.round(Math.sqrt(Math.pow(startX - lineX, 2) + Math.pow(startY - lineY, 2)));
+            let distanceFromStart = Math.hypot(startX - lineX, startY - lineY);
             if (nearestCollisionDistance === undefined ||
                 distanceFromStart < nearestCollisionDistance) {
               nearestCollisionDistance = distanceFromStart;
@@ -278,16 +308,23 @@ class PinballTable extends Component {
                 x: lineX,
                 y: lineY
               };
+              nearestSafePoint = lastSafePoint;
               collidedWith = obstacle;
               collidedObj = currentObj.current;
             }
+            break;
           }
+          lastSafePoint = {
+            x: lineX,
+            y: lineY
+          };
         }
       }
     }
 
     return {
       collisionPoint: nearestCollisionPoint,
+      lastSafePoint: nearestSafePoint,
       obstacle: collidedWith,
       obstacleObj: collidedObj
     };
@@ -306,75 +343,40 @@ class PinballTable extends Component {
    */
   getBallTouchPoints = () =>{
     let ballState = this.pinball.current.getState();
-    let ballTouchPoints = [];
-    if(ballState.xspeed > 0){
-      ballTouchPoints.push({//right
-        ballX: ballState.xpos + this.pinballSize,
-        ballY: ballState.ypos,
-        point: 'right',
-        offsetX: this.pinballSize,
-        offsetY: 0
+    const radius = this.pinballSize;
+    const centerX = ballState.xpos + radius;
+    const centerY = ballState.ypos + radius;
+    const diagonalOffset = Math.round(radius * Math.SQRT1_2);
+    const ballTouchPoints = [];
+    const addTouchPoint = (ballX, ballY) => {
+      ballTouchPoints.push({
+        ballX,
+        ballY,
+        offsetX: ballX - ballState.xpos,
+        offsetY: ballY - ballState.ypos
       });
+    };
+
+    if(ballState.xspeed > 0){
+      addTouchPoint(centerX + radius, centerY);
       if(ballState.yspeed < 0) {
-        ballTouchPoints.push({//top right
-          ballX: ballState.xpos + Math.round(Math.sin(45) * this.pinballSize),
-          ballY: ballState.ypos - Math.round(Math.cos(45) * this.pinballSize),
-          point: 'top-right',
-          offsetX: Math.round(Math.sin(45) * this.pinballSize),
-          offsetY: (-1 * Math.round(Math.cos(45) * this.pinballSize))
-        });
-      } else {
-        ballTouchPoints.push({//bottom right
-          ballX: ballState.xpos + Math.round(Math.sin(45) * this.pinballSize),
-          ballY: ballState.ypos + Math.round(Math.cos(45) * this.pinballSize),
-          point: 'bottom-right',
-          offsetX: Math.round(Math.sin(45) * this.pinballSize),
-          offsetY:  Math.round(Math.cos(45) * this.pinballSize)
-        });
+        addTouchPoint(centerX + diagonalOffset, centerY - diagonalOffset);
+      } else if(ballState.yspeed > 0) {
+        addTouchPoint(centerX + diagonalOffset, centerY + diagonalOffset);
       }
     } else if(ballState.xspeed < 0){
-      ballTouchPoints.push({ //left
-        ballX: ballState.xpos - this.pinballSize,
-        ballY: ballState.ypos,
-        point: 'left',
-        offsetX: (-1 * this.pinballSize),
-        offsetY: 0
-      });
+      addTouchPoint(centerX - radius, centerY);
       if(ballState.yspeed < 0) {
-        ballTouchPoints.push({ //top left
-          ballX: ballState.xpos - Math.round(Math.sin(45) * this.pinballSize),
-          ballY: ballState.ypos - Math.round(Math.cos(45) * this.pinballSize),
-          point: 'top-left',
-          offsetX: (-1 *  Math.round(Math.sin(45) * this.pinballSize)),
-          offsetY: (-1 *  Math.round(Math.cos(45) * this.pinballSize))
-        });
-      } else {
-        ballTouchPoints.push({ //bottom left
-          ballX: ballState.xpos - Math.round(Math.sin(45) * this.pinballSize),
-          ballY: ballState.ypos + Math.round(Math.cos(45) * this.pinballSize),
-          point: 'bottom left',
-          offsetX: (-1 * Math.round(Math.sin(45) * this.pinballSize)),
-          offsetY: Math.round(Math.cos(45) * this.pinballSize)
-        });
+        addTouchPoint(centerX - diagonalOffset, centerY - diagonalOffset);
+      } else if(ballState.yspeed > 0) {
+        addTouchPoint(centerX - diagonalOffset, centerY + diagonalOffset);
       }
     }
 
     if(ballState.yspeed > 0) {
-      ballTouchPoints.push({//bottom of the ball
-        ballX: ballState.xpos,
-        ballY: ballState.ypos + this.pinballSize,
-        point: 'bottom',
-        offsetX: 0,
-        offsetY: this.pinballSize
-      });
+      addTouchPoint(centerX, centerY + radius);
     } else if(ballState.yspeed < 0) {
-      ballTouchPoints.push({//top of the ball
-        ballX: ballState.xpos,
-        ballY: ballState.ypos - this.pinballSize,
-        point: 'top',
-        offsetX: 0,
-        offsetY: (-1 * this.pinballSize)
-      });
+      addTouchPoint(centerX, centerY - radius);
     }
 
     return ballTouchPoints;
@@ -387,6 +389,10 @@ class PinballTable extends Component {
     let tableSize = {
       "height": this.props.height + 'px',
       "width" : this.props.width + 'px'
+    };
+    let gameBoardSize = {
+      "height": (this.props.height + 24) + 'px',
+      "width": (this.props.width + 24) + 'px'
     };
     let pinballOrigin = {
       x: this.props.width,
@@ -404,26 +410,30 @@ class PinballTable extends Component {
     };
 
     return (
-        <div>
+        <div className="game-board" style={ gameBoardSize }>
           <div className='pinball-table' style={ tableSize }>
             <Pinball origin={pinballOrigin} tableprops={this.props}
                      ref={this.pinball} obstacles={this.tableElements}
                      ballWantsToMove={this.ballWantsToMove}
                      floor={this.floor}
                      size={this.pinballSize}
+                     bumperHit={this.props.onBumperHit}
                      balllost={this.ballLost}/>
           { this.tableElements.map(item =>
               <Obstacle {...item} key={item.id} flip={this.state.flip} ref={this[item.id]}
               ballTouchPoints={this.getBallTouchPoints} centerOfTable={(this.props.width / 2)}/> ) }
           </div>
           <Draggable
+            nodeRef={this.plungerRef}
             onStop={this.plungered}
             axis="y"
             bounds={{ top: 0, bottom: 80}}
             key={this.state.plungerKey}>
-            <div className='plunger' style={ plungerStyle }/>
+            <div className='plunger' ref={this.plungerRef} style={ plungerStyle }/>
           </Draggable>
           <button className="flipperButton"
+            type="button"
+            aria-label="Flip flippers"
             style={ flipperButtonStyle }
             onClick={this.triggerFlippers}/>
         </div>
