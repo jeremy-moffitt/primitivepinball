@@ -1,8 +1,9 @@
 # Primitive Pinball
 
 A small browser pinball game built with React. Drag the plunger down and release
-it to launch the ball. Use **Flip flippers** to operate the paddles and score
-100 points each time the ball hits a bumper.
+it to launch the ball. Press **A** to flip the left paddle, **D** to flip the
+right paddle, or **Space** to flip both. The on-screen button also flips both.
+Score 100 points each time the ball hits a bumper.
 
 ## Requirements
 

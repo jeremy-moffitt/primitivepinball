@@ -19,7 +19,7 @@ class App extends Component {
       <main className="app">
         <header className="app-header">
           <h1>Primitive Pinball</h1>
-          <p>Drag the plunger down and release to launch. Press the button to flip.</p>
+          <p>Drag the plunger down to launch. Press A for left, D for right, or Space for both flippers.</p>
         </header>
         <div className="scoreboard" aria-live="polite">
           <span>Score</span>

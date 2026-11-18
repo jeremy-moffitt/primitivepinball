@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import Wall from './Wall.jsx';
 import Flipper from './Flipper.jsx';
+import RoundBumper from './RoundBumper.jsx';
 
 /**
  * the obstacle class is basically an interface for more specific obstacle types
@@ -58,6 +59,10 @@ class Obstacle extends Component {
     } else if (this.props.type === 'flipper'){
       return(
           <Flipper {...this.props} ref={this.myActualComponent}/>
+      )
+    } else if (this.props.type === 'round'){
+      return(
+          <RoundBumper {...this.props} ref={this.myActualComponent}/>
       )
     }
   }

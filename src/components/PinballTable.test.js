@@ -1,5 +1,8 @@
 import { expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { createElement } from 'react';
 import PinballTable from './PinballTable';
+import RoundBumper from './RoundBumper';
 import Wall from './Wall';
 
 function createTable() {
@@ -20,6 +23,158 @@ it('checks collisions along the ball movement path', () => {
 
   expect(table.checkCollisions).toHaveBeenCalledWith(12, 14, 13, 16);
   expect(nextState).toMatchObject({ xpos: 101, ypos: 202 });
+});
+
+it('places two round bumpers in the top half without intersecting existing bumpers', () => {
+  const table = createTable();
+  const roundBumpers = table.tableElements.filter((element) => element.type === 'round');
+  const rectangularBumpers = table.tableElements.filter((element) => element.type === 'wall');
+
+  expect(roundBumpers).toHaveLength(2);
+  expect(roundBumpers.every((bumper) => bumper.ypos + (bumper.radius * 2) < 400)).toBe(true);
+
+  const [first, second] = roundBumpers;
+  expect(Math.hypot(
+    (first.xpos + first.radius) - (second.xpos + second.radius),
+    (first.ypos + first.radius) - (second.ypos + second.radius)
+  )).toBeGreaterThan(first.radius + second.radius);
+
+  for(const circle of roundBumpers) {
+    for(const rectangle of rectangularBumpers) {
+      const angle = rectangle.angle * (Math.PI / 180);
+      const deltaX = circle.xpos + circle.radius - rectangle.xpos;
+      const deltaY = circle.ypos + circle.radius - rectangle.ypos;
+      const localX = (deltaX * Math.cos(angle)) + (deltaY * Math.sin(angle));
+      const localY = (-deltaX * Math.sin(angle)) + (deltaY * Math.cos(angle));
+      const closestX = Math.max(0, Math.min(rectangle.width, localX));
+      const closestY = Math.max(0, Math.min(rectangle.height, localY));
+
+      expect(Math.hypot(localX - closestX, localY - closestY)).toBeGreaterThan(circle.radius);
+    }
+  }
+});
+
+it('renders a purple circular bumper and reflects the ball away from its surface', () => {
+  const bumper = new RoundBumper({ xpos: 10, ypos: 20, radius: 15 });
+  const { container } = render(createElement(RoundBumper, {
+    xpos: 10,
+    ypos: 20,
+    radius: 15
+  }));
+  const element = container.querySelector('.round-bumper');
+
+  expect(element.style.background).toBe('purple');
+  expect(element.style.borderRadius).toBe('50%');
+  expect(bumper.isPointInBoundary(25, 35)).toBe(true);
+  expect(bumper.isPointInBoundary(10, 20)).toBe(false);
+  expect(bumper.impactOfCollision(25, 25, 25, 20, 0, 10))
+    .toEqual({ newXSpeed: 0, newYSpeed: -10 });
+});
+
+it('counts round bumper collisions as scoring hits', () => {
+  const table = createTable();
+  table.getBallTouchPoints = () => [{
+    ballX: 116,
+    ballY: 216,
+    offsetX: 16,
+    offsetY: 16
+  }];
+  table.checkCollisions = vi.fn(() => ({
+    collisionPoint: { x: 117, y: 218 },
+    lastSafePoint: { x: 116, y: 216 },
+    obstacle: { type: 'round' },
+    obstacleObj: {
+      impactOfCollision: () => ({ newXSpeed: -20, newYSpeed: -40 })
+    }
+  }));
+
+  expect(table.ballWantsToMove(100, 200, 20, 40).bumperHit).toBe(true);
+});
+
+it('positions both flippers as exact mirrors with the existing tip gap', () => {
+  const table = createTable();
+  const [left, right] = table.tableElements.filter((element) => element.type === 'flipper');
+  const angleRadians = left.angle * (Math.PI / 180);
+  const leftTipX = left.xpos + (left.length * Math.cos(angleRadians));
+  const rightTipX = right.xpos - (right.length * Math.cos(angleRadians));
+
+  expect(left.side).toBe('left');
+  expect(right.side).toBe('right');
+  expect(left.xpos + right.xpos).toBe(400);
+  expect(left.ypos).toBe(right.ypos);
+  expect(left.length).toBe(right.length);
+  expect(left.angle + right.angle).toBe(180);
+  expect(left.arc + right.arc).toBe(0);
+  expect(rightTipX - leftTipX).toBeCloseTo(40);
+});
+
+it('maps A, D, and Space to left, right, and both flippers', () => {
+  const table = createTable();
+  table.triggerFlippers = vi.fn();
+  const preventDefault = vi.fn();
+
+  table.handleKeyDown({ key: 'a', repeat: false, preventDefault });
+  table.handleKeyDown({ key: 'D', repeat: false, preventDefault });
+  table.handleKeyDown({ key: ' ', repeat: false, preventDefault });
+
+  expect(table.triggerFlippers.mock.calls).toEqual([
+    ['left'],
+    ['right'],
+    ['both']
+  ]);
+  expect(preventDefault).toHaveBeenCalledOnce();
+});
+
+it('ignores repeated keydown events and typing into editable fields', () => {
+  const table = createTable();
+  table.triggerFlippers = vi.fn();
+
+  table.handleKeyDown({ key: 'a', repeat: true, target: { tagName: 'BODY' } });
+  table.handleKeyDown({ key: 'd', repeat: false, target: { tagName: 'INPUT' } });
+  table.handleKeyDown({
+    key: ' ',
+    repeat: false,
+    target: { tagName: 'DIV', isContentEditable: true }
+  });
+
+  expect(table.triggerFlippers).not.toHaveBeenCalled();
+});
+
+it('only activates the requested flipper', () => {
+  const table = createTable();
+  const leftFlip = vi.fn(() => ({ x: 0, y: 0 }));
+  const rightFlip = vi.fn(() => ({ x: 0, y: 0 }));
+  table.pinball.current = {
+    getState: () => ({ xpos: 0, ypos: 0, xspeed: 0, yspeed: 0 })
+  };
+  table.tableElements = [
+    { type: 'flipper', side: 'left', id: 'leftFlipper' },
+    { type: 'flipper', side: 'right', id: 'rightFlipper' }
+  ];
+  table.leftFlipper = { current: { getActualComponent: () => ({ flip: leftFlip }) } };
+  table.rightFlipper = { current: { getActualComponent: () => ({ flip: rightFlip }) } };
+
+  table.triggerFlippers('left');
+
+  expect(leftFlip).toHaveBeenCalledOnce();
+  expect(rightFlip).not.toHaveBeenCalled();
+});
+
+it('wires A and D to separate flippers and the button to both', () => {
+  const { container } = render(createElement(PinballTable, { height: 800, width: 400 }));
+  const flippers = container.querySelectorAll('.flipper');
+
+  fireEvent.keyDown(window, { key: 'a' });
+  expect(flippers[0].style.transform).toBe('rotate(-40deg)');
+  expect(flippers[1].style.transform).toBe('rotate(150deg)');
+
+  fireEvent.keyDown(window, { key: 'd' });
+  expect(flippers[0].style.transform).toBe('rotate(-40deg)');
+  expect(flippers[1].style.transform).toBe('rotate(220deg)');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Flip both flippers' }));
+  expect(flippers[0].style.transform).toBe('rotate(-40deg)');
+  expect(flippers[1].style.transform).toBe('rotate(220deg)');
 });
 
 it('samples from the ball toward the bumper and keeps the last safe point', () => {
