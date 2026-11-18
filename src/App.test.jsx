@@ -6,7 +6,7 @@ it('shows the game and its flipper control', () => {
   const { container } = render(<App />);
 
   expect(screen.getByRole('heading', { name: 'Primitive Pinball' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Flip flippers' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Flip both flippers' })).toBeInTheDocument();
   expect(screen.getByLabelText('Score')).toHaveTextContent('0');
   expect(container.querySelector('.pinball-table')).toBeInTheDocument();
 });

@@ -24,6 +24,11 @@ class PinballTable extends Component {
     this.plungerRef = React.createRef();
     this.pinballSize = DEFAULT_BALL_SIZE;
     this.floor = this.props.height - (this.pinballSize * 2);
+    const flipperLength = 70;
+    const flipperAngle = 30;
+    const flipperGap = 40;
+    const flipperAnchorOffset =
+      (flipperLength * Math.cos(flipperAngle * (Math.PI / 180))) + (flipperGap / 2);
 
     //the table elements should probably be moved out to a json file or similar
     this.tableElements = [
@@ -55,20 +60,36 @@ class PinballTable extends Component {
         id: 'wall3'
       },
       {
+        type: 'round',
+        xpos: 90,
+        ypos: 160,
+        radius: 18,
+        id: 'roundBumper1'
+      },
+      {
+        type: 'round',
+        xpos: 274,
+        ypos: 160,
+        radius: 18,
+        id: 'roundBumper2'
+      },
+      {
         type: 'flipper',
-        xpos: (this.props.width / 2) - 80,
+        side: 'left',
+        xpos: (this.props.width / 2) - flipperAnchorOffset,
         ypos: 700,
-        length: 70,
-        angle: 30,
+        length: flipperLength,
+        angle: flipperAngle,
         arc: -70,
         id: 'leftFlipper1'
       },
       {
         type: 'flipper',
-        xpos: (this.props.width / 2) + 80,
+        side: 'right',
+        xpos: (this.props.width / 2) + flipperAnchorOffset,
         ypos: 700,
-        length: 70,
-        angle: 150,
+        length: flipperLength,
+        angle: 180 - flipperAngle,
         arc: 70,
         id: 'rightFlipper1'
       }
@@ -87,6 +108,45 @@ class PinballTable extends Component {
       plungerKey: 0,
       flipperCollisionsEnabled: true
     }
+  }
+
+  componentDidMount() {
+    window.addEventListener('keydown', this.handleKeyDown);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.handleKeyDown);
+  }
+
+  /**
+   * Routes A, D, and Space key presses to the corresponding flipper or flippers.
+   *
+   * @param event the keyboard event
+   */
+  handleKeyDown = (event) => {
+    if(event.repeat || (event.target && event.target.isContentEditable)) {
+      return;
+    }
+
+    if(event.target && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+    const sideByKey = {
+      a: 'left',
+      d: 'right',
+      ' ': 'both'
+    };
+    const side = sideByKey[key];
+    if(!side) {
+      return;
+    }
+
+    if(key === ' ') {
+      event.preventDefault();
+    }
+    this.triggerFlippers(side);
   }
 
   /**
@@ -129,14 +189,16 @@ class PinballTable extends Component {
   }
 
   /**
-   * move the flippers, check if they hit the ball
+   * Moves the requested flipper or flippers and checks whether they hit the ball.
+   *
+   * @param side which flipper to move: {@code left}, {@code right}, or {@code both}
    */
-  triggerFlippers = () => {
+  triggerFlippers = (side = 'both') => {
     let currentObj, appliedForce;
     let pinball = this.pinball.current.getState();
     for(const obstacle of this.tableElements)
     {
-      if(obstacle.type ==='flipper') {
+      if(obstacle.type === 'flipper' && (side === 'both' || obstacle.side === side)) {
         currentObj = this[obstacle.id].current;//try to get the ref
         appliedForce = currentObj.getActualComponent().flip(pinball.xpos, pinball.ypos,
                                                             pinball.xspeed, pinball.yspeed,
@@ -227,7 +289,7 @@ class PinballTable extends Component {
       //if there was a collision, apply the obstacles collision logic to the ball
       if(collision.collisionPoint) {
         //found a collision!
-        bumperHit = collision.obstacle.type === 'wall';
+        bumperHit = collision.obstacle.type === 'wall' || collision.obstacle.type === 'round';
         let updatedSpeed = collision.obstacleObj.impactOfCollision(
             xpos + this.pinballSize,
             ypos + this.pinballSize,
@@ -433,9 +495,10 @@ class PinballTable extends Component {
           </Draggable>
           <button className="flipperButton"
             type="button"
-            aria-label="Flip flippers"
+            aria-label="Flip both flippers"
+            title="Flip both flippers (Space)"
             style={ flipperButtonStyle }
-            onClick={this.triggerFlippers}/>
+            onClick={() => this.triggerFlippers('both')}/>
         </div>
     )
   }
