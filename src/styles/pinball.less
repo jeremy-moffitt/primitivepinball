@@ -4,6 +4,50 @@
   background-color: white;
 }
 
+.pinball-table[data-background="blue"] {
+  background-color: #4b91c8;
+}
+
+.pinball-table[data-background="gradient"] {
+  background: linear-gradient(180deg, #123f78 0%, #327bb7 52%, #9bd5f2 100%);
+}
+
+.pinball-table[data-background="stars"] {
+  background-color: #15558f;
+}
+
+.playfield-stars {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.playfield-stars span {
+  color: #ffe66d;
+  font-size: 18px;
+  line-height: 1;
+  position: absolute;
+}
+
+.playfield-stars span::before {
+  content: "✦";
+}
+
+.playfield-stars span:nth-child(1) { left: 8%; top: 8%; }
+.playfield-stars span:nth-child(2) { left: 28%; top: 18%; font-size: 13px; }
+.playfield-stars span:nth-child(3) { left: 65%; top: 9%; }
+.playfield-stars span:nth-child(4) { left: 84%; top: 22%; font-size: 14px; }
+.playfield-stars span:nth-child(5) { left: 17%; top: 37%; font-size: 14px; }
+.playfield-stars span:nth-child(6) { left: 48%; top: 31%; }
+.playfield-stars span:nth-child(7) { left: 75%; top: 43%; font-size: 13px; }
+.playfield-stars span:nth-child(8) { left: 7%; top: 59%; font-size: 13px; }
+.playfield-stars span:nth-child(9) { left: 34%; top: 68%; }
+.playfield-stars span:nth-child(10) { left: 89%; top: 63%; }
+.playfield-stars span:nth-child(11) { left: 58%; top: 81%; font-size: 14px; }
+.playfield-stars span:nth-child(12) { left: 20%; top: 88%; font-size: 13px; }
+
 .game-board {
   position: relative;
   margin: 0 auto;
@@ -17,6 +61,15 @@
 
 .wall {
   position: absolute;
+}
+
+.railing {
+  background: #455a64;
+  border: 1px solid #263238;
+  box-sizing: border-box;
+  position: absolute;
+  transform-origin: 0 50%;
+  z-index: 1;
 }
 
 .round-bumper {

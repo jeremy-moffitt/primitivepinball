@@ -20,6 +20,15 @@
   margin: 0;
 }
 
+.game-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 1rem auto;
+}
+
 .scoreboard {
   align-items: center;
   background: #203b2e;
@@ -29,7 +38,7 @@
   font-size: 1.15rem;
   font-weight: 700;
   gap: 0.75rem;
-  margin: 1rem auto;
+  margin: 0;
   padding: 0.5rem 1rem;
 }
 
@@ -38,6 +47,34 @@
   font-variant-numeric: tabular-nums;
   min-width: 4ch;
   text-align: right;
+}
+
+.background-control {
+  align-items: center;
+  background: #203b2e;
+  border: 1px solid #5b775d;
+  border-radius: 0.5rem;
+  color: #f3e7c7;
+  display: inline-flex;
+  flex-wrap: wrap;
+  font-weight: 600;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.45rem 0.75rem;
+}
+
+.background-control select {
+  background: #f3e7c7;
+  border: 1px solid #5b775d;
+  border-radius: 0.25rem;
+  color: #14261e;
+  font: inherit;
+  padding: 0.25rem 0.4rem;
+}
+
+.background-control select:focus-visible {
+  outline: 3px solid #f3e7c7;
+  outline-offset: 3px;
 }
 
 .game-scroll {

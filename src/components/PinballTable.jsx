@@ -29,6 +29,8 @@ class PinballTable extends Component {
     const flipperGap = 40;
     const flipperAnchorOffset =
       (flipperLength * Math.cos(flipperAngle * (Math.PI / 180))) + (flipperGap / 2);
+    const cornerBumperSpan = this.props.width * 0.25;
+    const cornerBumperLength = cornerBumperSpan * Math.SQRT2;
 
     //the table elements should probably be moved out to a json file or similar
     this.tableElements = [
@@ -47,17 +49,33 @@ class PinballTable extends Component {
         ypos: 320,
         width: 60,
         height: 10,
-        angle: 12,
+        angle: -12,
         id: 'wall2'
       },
       {
         type: 'wall',
-        xpos: 170,
-        ypos: 400,
-        width: 60,
+        xpos: 0,
+        ypos: cornerBumperSpan,
+        width: cornerBumperLength,
         height: 10,
-        angle: 12,
-        id: 'wall3'
+        angle: -45,
+        id: 'topLeftBumper'
+      },
+      {
+        type: 'wall',
+        xpos: this.props.width - cornerBumperSpan,
+        ypos: 0,
+        width: cornerBumperLength,
+        height: 10,
+        angle: 45,
+        id: 'topRightBumper'
+      },
+      {
+        type: 'round',
+        xpos: 182,
+        ypos: 387,
+        radius: 18,
+        id: 'roundBumper3'
       },
       {
         type: 'round',
@@ -94,6 +112,31 @@ class PinballTable extends Component {
         id: 'rightFlipper1'
       }
     ];
+    const leftFlipper = this.tableElements.find((element) => element.id === 'leftFlipper1');
+    const rightFlipper = this.tableElements.find((element) => element.id === 'rightFlipper1');
+    const railingThickness = 8;
+    const railingTopY = (this.props.height * 0.7) + (railingThickness / 2);
+    const railingEdgeInset = this.props.width * 0.1;
+    this.tableElements.push(
+      {
+        type: 'railing',
+        points: [
+          { x: railingEdgeInset, y: railingTopY },
+          { x: leftFlipper.xpos, y: leftFlipper.ypos }
+        ],
+        thickness: railingThickness,
+        id: 'leftRailing'
+      },
+      {
+        type: 'railing',
+        points: [
+          { x: this.props.width - railingEdgeInset, y: railingTopY },
+          { x: rightFlipper.xpos, y: rightFlipper.ypos }
+        ],
+        thickness: railingThickness,
+        id: 'rightRailing'
+      }
+    );
 
     //create refs to each obstacle on the table
     for(const obstacle of this.tableElements){
@@ -157,7 +200,7 @@ class PinballTable extends Component {
   plungered = (event, element) => {
     //is the ball at the starting point? if not, don't move it from the plunger applying force
     if(this.pinball.current.isAtOrigin()) {
-      this.pinball.current.applyForce(element.y * (-0.25), element.y * (-2.00));
+      this.pinball.current.applyForce(element.y * (-0.15), element.y * (-2.6));
       //for testing left flipper collision uncomment out below and comment out above
       //this.pinball.current.applyForce(-15, -20);
 
@@ -473,7 +516,18 @@ class PinballTable extends Component {
 
     return (
         <div className="game-board" style={ gameBoardSize }>
-          <div className='pinball-table' style={ tableSize }>
+          <div
+            className="pinball-table"
+            data-background={this.props.background || 'classic'}
+            style={ tableSize }
+          >
+          {this.props.background === 'stars' && (
+            <div className="playfield-stars" aria-hidden="true">
+              {Array.from({ length: 12 }, (_, index) => (
+                <span key={index} />
+              ))}
+            </div>
+          )}
             <Pinball origin={pinballOrigin} tableprops={this.props}
                      ref={this.pinball} obstacles={this.tableElements}
                      ballWantsToMove={this.ballWantsToMove}

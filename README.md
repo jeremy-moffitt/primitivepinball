@@ -3,7 +3,10 @@
 A small browser pinball game built with React. Drag the plunger down and release
 it to launch the ball. Press **A** to flip the left paddle, **D** to flip the
 right paddle, or **Space** to flip both. The on-screen button also flips both.
-Score 100 points each time the ball hits a bumper.
+The starry blue playfield is selected by default; choose another of the four
+backgrounds next to the scoreboard if you prefer. Score 100
+points each time the ball hits a bumper. Side railings guide the ball toward the
+flippers without adding to your score.
 
 ## Requirements
 
