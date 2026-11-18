@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import PinballTable from './PinballTable';
+import Railing from './Railing';
 import RoundBumper from './RoundBumper';
 import Wall from './Wall';
 
@@ -25,21 +26,48 @@ it('checks collisions along the ball movement path', () => {
   expect(nextState).toMatchObject({ xpos: 101, ypos: 202 });
 });
 
-it('places two round bumpers in the top half without intersecting existing bumpers', () => {
+it('accelerates the ball downward between collisions', () => {
   const table = createTable();
-  const roundBumpers = table.tableElements.filter((element) => element.type === 'round');
+  table.getBallTouchPoints = () => [];
+
+  const nextState = table.ballWantsToMove(100, 200, 0, 0);
+
+  expect(nextState.ypos).toBe(200);
+  expect(nextState.yspeed).toBe(0.4);
+});
+
+it('launches with a smaller leftward skew and 30 percent more upward force', () => {
+  const table = createTable();
+  const applyForce = vi.fn();
+  table.pinball.current = {
+    isAtOrigin: () => true,
+    applyForce
+  };
+  vi.spyOn(globalThis, 'setTimeout').mockReturnValue(0);
+
+  table.plungered({}, { y: 80 });
+
+  expect(applyForce).toHaveBeenCalledWith(-12, -208);
+  vi.restoreAllMocks();
+});
+
+it('places two separated round bumpers in the top half clear of rectangular bumpers', () => {
+  const table = createTable();
+  const topRoundBumpers = table.tableElements.filter(
+    (element) => element.type === 'round' && element.ypos + element.radius < 400
+  );
   const rectangularBumpers = table.tableElements.filter((element) => element.type === 'wall');
 
-  expect(roundBumpers).toHaveLength(2);
-  expect(roundBumpers.every((bumper) => bumper.ypos + (bumper.radius * 2) < 400)).toBe(true);
+  expect(topRoundBumpers).toHaveLength(2);
+  expect(topRoundBumpers.every((bumper) => bumper.ypos + (bumper.radius * 2) < 400)).toBe(true);
 
-  const [first, second] = roundBumpers;
+  const [first, second] = topRoundBumpers;
   expect(Math.hypot(
     (first.xpos + first.radius) - (second.xpos + second.radius),
     (first.ypos + first.radius) - (second.ypos + second.radius)
   )).toBeGreaterThan(first.radius + second.radius);
 
-  for(const circle of roundBumpers) {
+  for(const circle of topRoundBumpers) {
     for(const rectangle of rectangularBumpers) {
       const angle = rectangle.angle * (Math.PI / 180);
       const deltaX = circle.xpos + circle.radius - rectangle.xpos;
@@ -52,6 +80,22 @@ it('places two round bumpers in the top half without intersecting existing bumpe
       expect(Math.hypot(localX - closestX, localY - closestY)).toBeGreaterThan(circle.radius);
     }
   }
+});
+
+it('replaces the center rectangular bumper with a round bumper at the same center', () => {
+  const table = createTable();
+  const roundBumpers = table.tableElements.filter((element) => element.type === 'round');
+  const centerBumper = roundBumpers.find((element) => element.id === 'roundBumper3');
+
+  expect(roundBumpers).toHaveLength(3);
+  expect(centerBumper).toMatchObject({
+    xpos: 182,
+    ypos: 387,
+    radius: 18
+  });
+  expect(centerBumper.xpos + centerBumper.radius).toBe(200);
+  expect(centerBumper.ypos + centerBumper.radius).toBe(405);
+  expect(table.tableElements.some((element) => element.id === 'wall3')).toBe(false);
 });
 
 it('renders a purple circular bumper and reflects the ball away from its surface', () => {
@@ -106,6 +150,65 @@ it('positions both flippers as exact mirrors with the existing tip gap', () => {
   expect(left.angle + right.angle).toBe(180);
   expect(left.arc + right.arc).toBe(0);
   expect(rightTipX - leftTipX).toBeCloseTo(40);
+});
+
+it('adds mirrored railings from the flipper pivots toward the outer edges', () => {
+  const table = createTable();
+  const leftFlipper = table.tableElements.find((element) => element.id === 'leftFlipper1');
+  const rightFlipper = table.tableElements.find((element) => element.id === 'rightFlipper1');
+  const [leftRailing, rightRailing] = table.tableElements
+    .filter((element) => element.type === 'railing');
+
+  expect(leftRailing).toMatchObject({
+    points: [
+      { x: 40, y: 564 },
+      { x: leftFlipper.xpos, y: leftFlipper.ypos }
+    ],
+    thickness: 8
+  });
+  expect(rightRailing).toMatchObject({
+    points: [
+      { x: 360, y: 564 },
+      { x: rightFlipper.xpos, y: rightFlipper.ypos }
+    ],
+    thickness: 8
+  });
+  expect(leftRailing.points[0].x + rightRailing.points[0].x).toBe(400);
+  expect(leftRailing.points[0].x).toBeGreaterThan(0);
+  expect(leftRailing.points[0].y - (leftRailing.thickness / 2)).toBe(800 * 0.7);
+  expect(leftRailing.points[1].x).toBeLessThan(200);
+  expect(rightRailing.points[1].x).toBeGreaterThan(200);
+});
+
+it('blocks and deflects the ball without awarding bumper points', () => {
+  const table = createTable();
+  const railing = {
+    type: 'railing',
+    id: 'testRailing'
+  };
+  const railingComponent = new Railing({
+    points: [{ x: 10, y: 0 }, { x: 10, y: 100 }],
+    thickness: 8
+  });
+  table.tableElements = [railing];
+  table.testRailing = { current: railingComponent };
+
+  const collision = table.checkCollisions(5, 50, 15, 50);
+  expect(collision.obstacle).toBe(railing);
+  expect(collision.obstacleObj).toBe(railingComponent);
+  expect(collision.lastSafePoint.x).toBeLessThan(10);
+
+  table.getBallTouchPoints = () => [{
+    ballX: 10,
+    ballY: 50,
+    offsetX: 16,
+    offsetY: 8
+  }];
+  const update = table.ballWantsToMove(-6, 42, 200, 0);
+
+  expect(update.bumperHit).toBe(false);
+  expect(update.xspeed).toBe(-200);
+  expect(update.xpos).toBe(-6);
 });
 
 it('maps A, D, and Space to left, right, and both flippers', () => {
@@ -356,16 +459,83 @@ it('reflects velocity off the wall face the ball approached', () => {
     .toEqual({ newXSpeed: -5, newYSpeed: -5 });
 });
 
-it('slants every existing bumper by at least ten degrees', () => {
+it('slants both side rectangular bumpers by at least ten degrees', () => {
   const table = createTable();
-  const bumpers = table.tableElements.filter((element) => element.type === 'wall');
-  const rightmostBumper = bumpers.reduce((rightmost, bumper) =>
-    bumper.xpos > rightmost.xpos ? bumper : rightmost
+  const bumpers = table.tableElements.filter((element) =>
+    element.id === 'wall1' || element.id === 'wall2'
+  );
+  const rightSideBumper = bumpers.find((bumper) => bumper.id === 'wall1');
+
+  expect(bumpers).toHaveLength(2);
+  expect(bumpers.every((bumper) => Math.abs(bumper.angle) >= 10)).toBe(true);
+  expect(rightSideBumper.angle).toBe(12);
+});
+
+it('slants the left rectangular bumper upward toward the middle', () => {
+  const table = createTable();
+  const leftBumper = table.tableElements.find((element) => element.id === 'wall2');
+  const outerEdgeY = leftBumper.ypos;
+  const innerEdgeY = leftBumper.ypos +
+    (leftBumper.width * Math.sin(leftBumper.angle * (Math.PI / 180)));
+
+  expect(leftBumper.angle).toBe(-12);
+  expect(innerEdgeY).toBeLessThan(outerEdgeY);
+});
+
+it('adds mirrored angled bumpers that direct top-corner hits toward the middle', () => {
+  const table = createTable();
+  const leftBumper = table.tableElements.find((element) => element.id === 'topLeftBumper');
+  const rightBumper = table.tableElements.find((element) => element.id === 'topRightBumper');
+  const tableWidth = 400;
+  const cornerBumperSpan = tableWidth * 0.25;
+  const toWorld = (bumper, localX, localY) => {
+    const angle = bumper.angle * (Math.PI / 180);
+    return {
+      x: bumper.xpos + (localX * Math.cos(angle)) - (localY * Math.sin(angle)),
+      y: bumper.ypos + (localX * Math.sin(angle)) + (localY * Math.cos(angle))
+    };
+  };
+
+  expect(leftBumper).toMatchObject({
+    xpos: 0,
+    ypos: cornerBumperSpan,
+    width: cornerBumperSpan * Math.SQRT2,
+    height: 10,
+    angle: -45
+  });
+  expect(rightBumper).toMatchObject({
+    xpos: tableWidth - cornerBumperSpan,
+    ypos: 0,
+    width: cornerBumperSpan * Math.SQRT2,
+    height: 10,
+    angle: 45
+  });
+
+  expect(toWorld(leftBumper, 0, 0)).toEqual({ x: 0, y: cornerBumperSpan });
+  expect(toWorld(leftBumper, leftBumper.width, 0).x).toBeCloseTo(cornerBumperSpan);
+  expect(toWorld(leftBumper, leftBumper.width, 0).y).toBeCloseTo(0);
+  expect(toWorld(rightBumper, 0, 0)).toEqual({
+    x: tableWidth - cornerBumperSpan,
+    y: 0
+  });
+  expect(toWorld(rightBumper, rightBumper.width, 0).x).toBeCloseTo(tableWidth);
+  expect(toWorld(rightBumper, rightBumper.width, 0).y).toBeCloseTo(cornerBumperSpan);
+
+  const leftStart = toWorld(leftBumper, 35, 20);
+  const leftImpact = toWorld(leftBumper, 35, 9);
+  const rightStart = toWorld(rightBumper, 35, 20);
+  const rightImpact = toWorld(rightBumper, 35, 9);
+  const leftBounce = new Wall(leftBumper).impactOfCollision(
+    leftStart.x, leftStart.y, leftImpact.x, leftImpact.y, 0, -100
+  );
+  const rightBounce = new Wall(rightBumper).impactOfCollision(
+    rightStart.x, rightStart.y, rightImpact.x, rightImpact.y, 0, -100
   );
 
-  expect(bumpers).toHaveLength(3);
-  expect(bumpers.every((bumper) => Math.abs(bumper.angle) >= 10)).toBe(true);
-  expect(rightmostBumper.angle).toBe(12);
+  expect(leftBounce.newXSpeed).toBeGreaterThan(0);
+  expect(rightBounce.newXSpeed).toBeLessThan(0);
+  expect(leftBounce.newYSpeed).toBeGreaterThan(0);
+  expect(rightBounce.newYSpeed).toBeGreaterThan(0);
 });
 
 it('uses the rotated bumper shape for collision checks and bounce direction', () => {
